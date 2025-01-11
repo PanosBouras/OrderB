@@ -8,6 +8,8 @@ import LoginScreen from './Screen/LoginScreen';
 import HomeScreen from './Screen/HomeScreen';   // Adjust the path as needed
 import TablesScreen from './Screen/TablesScreen';
 import OrderInfoScreen from './Screen/OrderInfoScreen';
+import ChoosePlatesScreen from './Screen/ChoosePlatesScreen';
+import ChooseDrinksScreen from './Screen/ChooseDrinksScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +21,8 @@ function App() {
         <Stack.Screen name="Home" component={HomeScreen} /> 
         <Stack.Screen name="Tables" component={TablesScreen} />
         <Stack.Screen name="OrderInfo" component={OrderInfoScreen} /> 
+        <Stack.Screen name="ChoosePlates" component={ChoosePlatesScreen} /> 
+        <Stack.Screen name="ChooseDrinks" component={ChooseDrinksScreen} /> 
 
       </Stack.Navigator>
     </NavigationContainer>

@@ -1,15 +1,15 @@
 import React, { useState,form } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { setGlobalTotalTablesCount, setGlobalUsername } from '../Staff/globalState';
+import { setGlobalTotalTablesCount, setGlobalUsername,BASE_URL,setGlobalFoodItemsList } from '../Staff/globalState';
 
 const LoginScreen = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const navigation = useNavigation(); 
   const handleLogin = async () => {
-    const url = `http://192.168.1.7/orderservice/Login?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-    
+    const url = `${BASE_URL}/orderservice/Login?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+ 
     try {
       const response = await fetch(url, {
         method: 'GET',
@@ -22,6 +22,7 @@ const LoginScreen = () => {
       const result = await response.text(); 
       setGlobalUsername(username);
       totalTables();
+      FoodListFun();
       if (result == "true") {
      console.log(result);
      navigation.navigate('Home');
@@ -38,11 +39,12 @@ const LoginScreen = () => {
       //Alert.alert('Login Failed', 'Something went wrong. Please try again later.');
       //alert.show("Alert test");
       console.log(error);
+      alert("URL:"+url+"\n"+error);
     }
   };
 
     const totalTables = async () => {
-    const url = `http://192.168.1.7/orderservice/GetTables`;
+    const url = `${BASE_URL}/orderservice/GetTables`;
     
     try {
       const response = await fetch(url, {
@@ -63,6 +65,31 @@ const LoginScreen = () => {
       console.log(error);
     }
   };
+
+  const FoodListFun = async () => {
+    const url = `${BASE_URL}/orderservice/GetFoodItems`;
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/plain',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.text(); 
+      setGlobalFoodItemsList(result);
+      return 60;
+    } catch (error) {
+    //  console.error('Login Error:', error);
+      //Alert.alert('Login Failed', 'Something went wrong. Please try again later.');
+      //alert.show("Alert test");
+      Alert.alert(error);
+    }
+  };
+
+
   
 
   return (

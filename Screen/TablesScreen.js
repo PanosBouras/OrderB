@@ -23,7 +23,7 @@ const TableScreen = () => {
   const [page, setPage] = useState(1);
   const itemsPerPage = 15;
 
-  const totalTables = globalTotalTablesCount; // Example: Adjust based on the actual number of tables you have
+  const totalTables = 20;//globalTotalTablesCount; // Example: Adjust based on the actual number of tables you have
 
 
   const navigation = useNavigation(); // Hook to access navigation
