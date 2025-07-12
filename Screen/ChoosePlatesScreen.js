@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, FlatList,Modal,TextInput,Button } from 'react-native';
-import { BASE_URL, gloabalTableid } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
+import { BASE_URL, gloabalTableid,globalUsername,globalUserID } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
 import { useNavigation } from '@react-navigation/native';
+
 
 const ChoosePlates = () => {
   const [data, setData] = useState([]);
@@ -140,50 +141,54 @@ const ChoosePlates = () => {
   };
 
 
-  const handleConfirmOrder = async () => {
-    try {
-      const orderData = data.flatMap((category) =>
-        category.items
-          .filter((item) => item.checked && item.quantity > 0) // Επιλέγουμε μόνο τα τσεκαρισμένα πιάτα με ποσότητα > 0
-          .map((item) => ({
-            itemId: item.Id,
-            name: item.Name,
-            quantity: item.quantity,
-            comment:item.ItemDescription||' '||item.comment, // Προσθέτουμε κενό string αν δεν υπάρχει σχόλιο
-          }))
-      );
-   //   console.error('JSON:'+JSON.stringify(orderData)+'\n');
-      const response = await fetch(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-     //  console.log("Order created successfully:", result);
-      //  alert('Order created successfully!');
-      } else {
-      //  console.error('Error creating order:', response.statusText+'\n'+JSON.stringify(orderData));
-      //  alert('Failed to create order');
-      }
-    } catch (error) {
-     // console.error('Error creating order:', error);
-     // alert('Error creating order');
-    }
-
-    navigation.navigate('OrderInfo', { tableNumber: gloabalTableid }); 
-  };
-
+ const handleConfirmOrder = async () => {
+          console.log(globalUserID);
+     try {
+       const orderData = data.flatMap((category) =>
+         category.items
+           .filter((item) => item.checked && item.quantity > 0) // Επιλέγουμε μόνο τα τσεκαρισμένα πιάτα με ποσότητα > 0
+           .map((item) => ({
+             itemId: item.Id,
+             name: item.Name,
+             quantity: item.quantity,
+             comment:item.ItemDescription||' '||item.comment, // Προσθέτουμε κενό string αν δεν υπάρχει σχόλιο
+           }))
+       );
+  
+    //   console.error('JSON:'+JSON.stringify(orderData)+'\n');
+    console.log(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}`);
+    console.log(JSON.stringify(orderData));   
+    const response = await fetch(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}`, {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json',
+         },
+         body: JSON.stringify(orderData),
+       });
+ 
+       if (response.ok) {
+         const result = await response.json();
+         console.log(globalUserID);
+      //  console.log("Order created successfully:", result);
+       //  alert('Order created successfully!');
+       } else {
+         console.error('Error creating order:', response.statusText+'\n'+JSON.stringify(orderData));
+       //  alert('Failed to create order');
+       }
+     } catch (error) {
+      // console.error('Error creating order:', error);
+      // alert('Error creating order');
+     }
+ 
+     navigation.navigate('OrderInfo', { tableNumber: gloabalTableid }); 
+   };
   
 
   const renderCategory = ({ item }) => (
     <View style={styles.categoryContainer}>
       <Text style={styles.categoryTitle}>{item.Name}</Text>
-      {item.items.map((foodItem) => (
-        <View key={foodItem.itemId} style={styles.foodItemContainer}>
+      {item.items.map((foodItem,index) => (
+      <View key={foodItem.itemId || index} style={styles.foodItemContainer}>
           <View style={{ flex: 1 }}>
             <Text style={styles.foodItemName}>{foodItem.Name.trim()}</Text>
             {foodItem.ItemDescription ? (
@@ -246,7 +251,7 @@ const ChoosePlates = () => {
       <FlatList
         data={data}
         renderItem={renderCategory}
-        keyExtractor={(item) => item.CategoryId}
+        keyExtractor={(item, index) => index.toString()} 
       />
       <TouchableOpacity style={styles.submitButton} onPress={handleConfirmOrder}>
         <Image
@@ -273,7 +278,7 @@ const ChoosePlates = () => {
               placeholder="Γράψτε το σχόλιό σας"
             />            <FlatList
               data={recommendations}
-              keyExtractor={(item) => item.ItemRecommendationsID}
+              keyExtractor={(item,index) => index.toString()}
               
               renderItem={({ item }) => (
                 <TouchableOpacity

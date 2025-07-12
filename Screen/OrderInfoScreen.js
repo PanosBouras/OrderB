@@ -1,7 +1,7 @@
 import React,{ useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image,Button } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import {gloabalTableid,setGloabalTableid,BASE_URL} from '../Staff/globalState';
+import {gloabalTableid,setGloabalTableid,BASE_URL,globalUsername} from '../Staff/globalState';
 import Dialog from 'react-native-dialog';
 import { CheckBox } from 'react-native-elements';
 
@@ -31,11 +31,11 @@ const handleDelete  =  async (OrderDTLSeq) => {
 // Συνάρτηση που καλείται για να επιβεβαιώσουμε τη διαγραφή
 const confirmDelete  =  async () => {
   // Διαγραφή του στοιχείου από τον πίνακα δεδομένων
-  console.log(orderDTLSeqToDelete);
   setOrderData(orderData.filter(order => order.OrderDTLSeq !== orderDTLSeqToDelete));
+  //console.log(orderDTLSeqToDelete);
   try {
 
-            const response = await fetch(`${BASE_URL}/orderservice/PostDeleteItemOrder?orderItemSeq=${encodeURIComponent(orderDTLSeqToDelete)}`, {
+            const response = await fetch(`${BASE_URL}/orderservice/PostDeleteItemOrder?orderItemSeq=${encodeURIComponent(orderDTLSeqToDelete)}&username=${encodeURIComponent(globalUsername)}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -58,7 +58,7 @@ const confirmDeleteOrder = async () => {
   setOrderData([]);
   try {
 
-    const response = await fetch(`${BASE_URL}/orderservice/PostDeleteOrder?tableid=${encodeURIComponent(gloabalTableid)}`, {
+    const response = await fetch(`${BASE_URL}/orderservice/PostDeleteOrder?tableid=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -84,16 +84,17 @@ const cancelDelete = () => {
 
 
 // Συνάρτηση για το toggle του checkbox
-const toggleCheckbox = (itemId, price) => {
+const toggleCheckbox = (item) => {
   setSelectedItems((prevSelected) => {
     // Αν το item είναι ήδη στη λίστα, το αφαιρούμε
-    if (prevSelected.some((item) => item.itemId === itemId)) {
-      return prevSelected.filter((item) => item.itemId !== itemId);
+    if (prevSelected.some((selected) => selected.Id === item.Id)) {
+      return prevSelected.filter((selected) => selected.Id !== item.Id);
     }
     // Αν δεν είναι, το προσθέτουμε
-    return [...prevSelected, { itemId, price }];
+    return [...prevSelected, item];
   });
 };
+
 
 const handleAddPlate = () => { 
   try {
@@ -114,6 +115,16 @@ const handleAddDrink = () => {
     console.log(error);
   }
 };
+
+const handleTicketPayment = () => {
+  const itemsToPay = selectedItems.length
+    ? selectedItems 
+    : orderData.filter((item) => item.Status !== 'completed'); 
+    const orderId = itemsToPay.length > 0 ? itemsToPay[0].Orderid : null; 
+
+  navigation.navigate('PaymentScreen', { items: itemsToPay, orderId: orderId});
+};
+
 
   useEffect(() => {
     // Fetch orders from the API
@@ -159,35 +170,35 @@ const handleAddDrink = () => {
 
   }
   const renderOrderItem = ({ item }) => {
-    const isChecked = selectedItems.some((selected) => selected.itemId === item.Id); // Ελέγχουμε αν είναι τσεκαρισμένο
-
+    const isChecked = selectedItems.some((selected) => selected.Id === item.Id); // Ελέγχουμε αν είναι τσεκαρισμένο
     return (
-    <View style={styles.orderItem}>
+      <View style={styles.orderItem}>
         <View style={{ flex: 1 }}>
-      <Text style={styles.orderText}>
-        {item.Rownum}{') '}{item.ItemName} : ... {item.Price}€{' '}
-        {item.Status === 'completed' && <Text style={styles.checkIcon}>✔</Text>}
-      </Text>
-      <Text  style={styles.orderComments}>
-      {item.Comments}</Text>
-      </View>
-       {item.Status !== 'completed' && (
- <CheckBox
- checked={isChecked}
- onPress={() => toggleCheckbox(item.Id, item.Price)}
- checkedColor="#32CD32" // Χρώμα όταν είναι τσεκαρισμένο
- uncheckedColor="#FF6347" // Χρώμα όταν δεν είναι τσεκαρισμένο
-/>
-       )}
+          <Text style={styles.orderText}>
+            {item.Rownum}{') '}{item.ItemName} : ... {item.Price}€{' '}
+            {item.Status === 'completed' && <Text style={styles.checkIcon}>✔</Text>}
+          </Text>
+          <Text style={styles.orderComments}>
+            {item.Comments}
+          </Text>
+        </View>
         {item.Status !== 'completed' && (
-        <TouchableOpacity onPress={() => handleDelete(item.OrderDTLSeq)}>
-          <Text style={styles.crossIcon}>✘</Text>
-        </TouchableOpacity>
+          <CheckBox
+            checked={isChecked}
+            onPress={() => toggleCheckbox(item)} // Περνάμε ολόκληρο το αντικείμενο
+            checkedColor="#32CD32" // Χρώμα όταν είναι τσεκαρισμένο
+            uncheckedColor="#FF6347" // Χρώμα όταν δεν είναι τσεκαρισμένο
+          />
         )}
-    </View>
+        {item.Status !== 'completed' && (
+          <TouchableOpacity onPress={() => handleDelete(item.OrderDTLSeq)}>
+            <Text style={styles.crossIcon}>✘</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     );
-};
-
+  };
+  
   return (
     <View style={styles.container}>
       {/* Left Navigation */}
@@ -222,7 +233,7 @@ const handleAddDrink = () => {
         <FlatList
           data={orderData}
           renderItem={renderOrderItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => (item.ITEMID ? item.ITEMID.toString() : index.toString())}
           contentContainerStyle={styles.orderList}
         />
 
@@ -235,7 +246,7 @@ const handleAddDrink = () => {
             <TouchableOpacity  onPress={() => handleDeleteOrder(gloabalTableid)}>
               <Image source={require('../assets/cancelbutton.png')} style={styles.footerIcon} />
             </TouchableOpacity>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => handleTicketPayment()}>
               <Image source={require('../assets/ticketpayment.png')} style={styles.footerIcon} />
             </TouchableOpacity>
           </View>
@@ -245,7 +256,7 @@ const handleAddDrink = () => {
       <FlatList
         data={orderData}
         renderItem={renderOrderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => (item.ITEMID ? item.ITEMID.toString() : index.toString())}
         contentContainerStyle={styles.orderList}
       />
 
@@ -262,8 +273,8 @@ const handleAddDrink = () => {
     <View style={styles.container}>
       <FlatList
         data={orderData}
-        renderItem={renderOrderItem}
-        keyExtractor={(item) => item.id}
+        renderItem={renderOrderItem}a
+        keyExtractor={(item, index) => (item.ITEMID ? item.ITEMID.toString() : index.toString())}
         contentContainerStyle={styles.orderList}
       />
 

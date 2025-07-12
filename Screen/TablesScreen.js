@@ -60,7 +60,7 @@ const TableScreen = () => {
         key={page} // Re-render the grid when page changes
       />
         <TouchableOpacity style={styles.homeButton} onPress={() => navigation.navigate('Home')}>
-        <Text style={styles.homeButtonText}>Return to Home</Text>
+        <Text style={styles.homeButtonText}>Επιστροφή</Text>
       </TouchableOpacity>
 
       <View style={styles.paginationContainer}>

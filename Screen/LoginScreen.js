@@ -1,7 +1,7 @@
 import React, { useState,form } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { setGlobalTotalTablesCount, setGlobalUsername,BASE_URL,setGlobalFoodItemsList } from '../Staff/globalState';
+import { setGlobalTotalTablesCount, setGlobalUsername,setGlobalUserID,BASE_URL,setGlobalFoodItemsList } from '../Staff/globalState';
 
 const LoginScreen = () => {
   const [username, setUsername] = useState('');
@@ -23,8 +23,9 @@ const LoginScreen = () => {
       setGlobalUsername(username);
       totalTables();
       FoodListFun();
-      if (result == "true") {
+      if (result != null) {
      console.log(result);
+     setGlobalUserID(result);
      navigation.navigate('Home');
 
       } else {
@@ -125,6 +126,7 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundImage: '../assets/backgroundrounded.png',
     backgroundColor: '#4E4B36', // Dark olive green
     justifyContent: 'center',
     paddingHorizontal: 20,
