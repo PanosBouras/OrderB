@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, FlatList,Modal,TextInput,Button } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  TextInput,
+  Button,
+} from 'react-native';
 import { BASE_URL, gloabalTableid,globalUsername,globalUserID } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
 import { useNavigation } from '@react-navigation/native';
 
@@ -10,6 +21,7 @@ const ChooseDrinks = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
+  const [selectedOptions, setSelectedOptions] = useState([]);
   const [comment, setComment] = useState('');
 
   const handleReturnToOrder = () => {
@@ -44,6 +56,8 @@ const ChooseDrinks = () => {
           ...item,
           checked: false,
           quantity: 0, // Αρχική ποσότητα
+          extraPrice: 0,
+          selectedOptions: [],
         })),
     }));
   };
@@ -100,6 +114,7 @@ const ChooseDrinks = () => {
   const handleOpenModal = (itemId) => {
     setSelectedItemId(itemId);
     setModalVisible(true);
+    fetchRecommendations(itemId);
   };
 
   const fetchRecommendations = async (itemId) => {
@@ -112,31 +127,56 @@ const ChooseDrinks = () => {
     }
   };
 
-  const handleAddComment = () => {
-    setData((prevData) =>
-      prevData.map((category) => ({
-        ...category,
-        items: category.items.map((item) =>
-          item.Id === selectedItemId
-            ? {
-                ...item,
-                ItemDescription: `${item.ItemDescription || ''} ${comment}`,
-                comments: [...(item.comments || []), comment],
-                checked: true,         // Ορίζουμε το checked σε true
-                quantity: 1,           // Η ποσότητα γίνεται 1
-              }
-            : item
-        ),
-      }))
+ const toggleRecommendation = (rec) => {
+    setSelectedOptions((prev) =>
+      prev.includes(rec.ItemRecommendationsID) ? prev.filter((id) => id !== rec.ItemRecommendationsID) : [...prev, rec.ItemRecommendationsID]
     );
-    setComment('');              // Καθαρισμός του σχολίου
-    setModalVisible(false);      // Κλείσιμο του modal
   };
+
+const handleAddComment = () => {
+  // Επιλογή των συστάσεων που έχουν επιλεχθεί
+  const selectedRecs = recommendations.filter((rec) => selectedOptions.includes(rec.ItemRecommendationsID));
   
+  // Υπολογισμός του συνολικού έξτρα κόστους από τις συστάσεις
+const extraPrice = selectedRecs.reduce((sum, rec) => { 
+  const price = parseFloat(rec.RecommendationPrice.replace(',', '.') || 0);
+  const totalSum= sum +price;
+  return totalSum;
+}, 0);
+  // Σύνθεση της περιγραφής (σχόλια και συστάσεις)
+  const combinedDescription = `${comment} ${selectedRecs.map((r) => r.RecommendationDecription).join(', ')}`;
+
+  // Ενημέρωση των δεδομένων με τη νέα περιγραφή και τιμή
+  setData((prevData) =>
+    prevData.map((category) => ({
+      ...category,
+      items: category.items.map((item) =>
+        item.Id === selectedItemId
+          ? {
+              ...item,
+              ItemDescription: combinedDescription.trim(),
+              comments: [...(item.comments || []), comment],
+              checked: true,
+              quantity: 1,
+              extraPrice: extraPrice,  // Ενημέρωση με το νέο extraPrice
+              selectedOptions: selectedOptions, // Αποθήκευση των επιλεγμένων συστάσεων
+            }
+          : item
+      ),
+    }))
+  );
+
+  // Επαναφορά των επιλογών και του σχολίου
+  setComment('');
+  setSelectedOptions([]);
+  setModalVisible(false);
+};
+
 
 
   const handleCancelComment = () => {
     setComment('');
+    setSelectedOptions([]);
     setModalVisible(false);
   };
 
@@ -151,7 +191,8 @@ const ChooseDrinks = () => {
             itemId: item.Id,
             name: item.Name,
             quantity: item.quantity,
-            comment:item.ItemDescription||' '||item.comment, // Προσθέτουμε κενό string αν δεν υπάρχει σχόλιο
+            comment: item.ItemDescription || '',
+            price: parseFloat(item.Price)+parseFloat(item.extraPrice) || 0,
           }))
       );
  
@@ -185,58 +226,38 @@ const ChooseDrinks = () => {
 
   
 
-  const renderCategory = ({ item }) => (
-    <View style={styles.categoryContainer}>
-      <Text style={styles.categoryTitle}>{item.Name}</Text>
-      {item.items.map((foodItem,index) => (
-        <View key={foodItem.itemId  || index} style={styles.foodItemContainer}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.foodItemName}>{foodItem.Name.trim()}</Text>
-            {foodItem.ItemDescription ? (
-              <Text style={styles.foodItemDescription}>{foodItem.ItemDescription}</Text>
-            ) : null}
-          </View>
-          {foodItem.Price ? (
-            null
-           // <Text style={styles.foodItemPrice}>{foodItem.Price}€</Text>
-          ) : null}
-          <View style={styles.quantityContainer}>
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, -1)}
-            >
-              <Text style={styles.quantityText}>-</Text>
+   const renderCategory = ({ item }) => (
+      <View style={styles.categoryContainer}>
+        <Text style={styles.categoryTitle}>{item.Name}</Text>
+        {item.items.map((foodItem, index) => (
+          <View key={foodItem.itemId || index} style={styles.foodItemContainer}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.foodItemName}>{foodItem.Name.trim()}</Text>
+              {foodItem.ItemDescription ? <Text style={styles.foodItemDescription}>{foodItem.ItemDescription}</Text> : null}
+              <Text style={styles.foodItemPrice}>
+                Τιμή: {(parseFloat(foodItem.Price || 0) + parseFloat(foodItem.extraPrice || 0)).toFixed(2)}€
+              </Text>
+            </View>
+            <View style={styles.quantityContainer}>
+              <TouchableOpacity style={styles.quantityButton} onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, -1)}>
+                <Text style={styles.quantityText}>-</Text>
+              </TouchableOpacity>
+              <Text style={styles.quantityDisplay}>{foodItem.quantity}</Text>
+              <TouchableOpacity style={styles.quantityButton} onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, 1)}>
+                <Text style={styles.quantityText}>+</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.checkboxContainer} onPress={() => toggleCheck(item.CategoryId, foodItem.Name)}>
+              <View style={[styles.checkbox, foodItem.checked && styles.checkboxChecked]} />
             </TouchableOpacity>
-            <Text style={styles.quantityDisplay}>{foodItem.quantity}</Text>
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, 1)}
-            >
-              <Text style={styles.quantityText}>+</Text>
+            <TouchableOpacity style={styles.itemIdButton} onPress={() => handleItemId(foodItem.Id)}>
+              <Text style={styles.itemIdButtonText}>...</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={styles.checkboxContainer}
-            onPress={() => toggleCheck(item.CategoryId, foodItem.Name)}
-          >
-            <View
-              style={[
-                styles.checkbox,
-                foodItem.checked && styles.checkboxChecked, // Ενημερώνει το checkbox αν είναι checked
-              ]}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-  style={styles.itemIdButton}
-  onPress={() => handleItemId(foodItem.Id)} // Ελέγχει εναλλακτικά πεδία
->
-  <Text style={styles.itemIdButtonText}>...</Text>
-</TouchableOpacity>
-        </View>
-      ))}
-    </View>
-  );
-
+        ))}
+      </View>
+    );
+  
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -246,58 +267,49 @@ const ChooseDrinks = () => {
   }
   
 
-  return (
-    <View style={styles.container}>
-      <Image source={require('../assets/51348143.png')} style={styles.imgIcon} />
-      <FlatList
-        data={data}
-        renderItem={renderCategory}
-        keyExtractor={(item, index) => index.toString()} 
-      />
-      <TouchableOpacity style={styles.submitButton} onPress={handleConfirmOrder}>
-        <Image
-          source={require('../IMAGE/checkmark_8625365.png')} // Εικόνα κουμπιού επιβεβαίωσης
-          style={styles.submitIcon}
-        />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.navButton} onPress={() => handleReturnToOrder()}>
-        <Text style={styles.backIcon}>{'↩'}</Text>
-      </TouchableOpacity>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Προσθήκη Σημειώσεων</Text>
-            <TextInput
-              style={styles.commentInput}
-              value={comment}
-              onChangeText={setComment}
-              placeholder="Γράψτε το σχόλιό σας"
-            />            <FlatList
-              data={recommendations}
-              keyExtractor={(item,index) => index.toString()}
-              
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.recommendationItem}
-                  onPress={() => setComment(item.RecommendationDecription)}
-                >
-                  <Text style={styles.recommendationText}>{item.RecommendationDecription}</Text>
-                </TouchableOpacity>
-              )}
-            />
-
-            <Button title="OK" style={styles.ModalButtons} onPress={handleAddComment} />
-            <Button title="Cancel" style={styles.ModalButtons}  onPress={handleCancelComment} />
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );  
+   return (
+     <View style={styles.container}>
+       <Image source={require('../assets/51348143.png')} style={styles.imgIcon} />
+       <FlatList data={data} renderItem={renderCategory} keyExtractor={(item, index) => index.toString()} />
+       <TouchableOpacity style={styles.submitButton} onPress={handleConfirmOrder}>
+         <Image source={require('../IMAGE/checkmark_8625365.png')} style={styles.submitIcon} />
+       </TouchableOpacity>
+       <TouchableOpacity style={styles.navButton} onPress={handleReturnToOrder}>
+         <Text style={styles.backIcon}>{'↩'}</Text>
+       </TouchableOpacity>
+ 
+       <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={handleCancelComment}>
+         <View style={styles.modalContainer}>
+           <View style={styles.modalContent}>
+               {recommendations.length > 0 && (
+            <Text style={styles.modalTitle}>Προσθήκη Επιλογών</Text>
+          )}
+                {recommendations.map((rec) => (
+               <TouchableOpacity
+                 key={rec.Id?.toString() || Math.random().toString()}
+                 style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4 }}
+                 onPress={() => toggleRecommendation(rec)}
+               >
+                 <Text >{rec.RecommendationDecription} ({rec.RecommendationPrice}€)   </Text>
+                 <View style={[styles.checkbox, selectedOptions.includes(rec.ItemRecommendationsID) && styles.checkboxChecked]} />
+               </TouchableOpacity>
+             ))}
+             <Text style={styles.modalTitle}>Προσθήκη Σημειώσεων</Text>
+             <TextInput
+               style={styles.commentInput}
+               value={comment}
+               onChangeText={setComment}
+               placeholder="Γράψτε το σχόλιό σας"
+             />
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
+        <Button  title="Άκυρο" onPress={handleCancelComment} />
+        <Button title="ΠΡΟΣΘΗΚΗ" onPress={handleAddComment} />
+      </View>
+           </View>
+         </View>
+       </Modal>
+     </View>
+   );
 };
 
 const styles = StyleSheet.create({

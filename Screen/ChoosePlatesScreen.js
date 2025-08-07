@@ -1,8 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, FlatList,Modal,TextInput,Button } from 'react-native';
-import { BASE_URL, gloabalTableid,globalUsername,globalUserID } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
-import { useNavigation } from '@react-navigation/native';
+// Full version of ChoosePlates.js with updated checkbox-based recommendation selection
 
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  TextInput,
+  Button,
+} from 'react-native';
+import { BASE_URL, gloabalTableid, globalUsername, globalUserID } from '../Staff/globalState';
+import { useNavigation } from '@react-navigation/native';
 
 const ChoosePlates = () => {
   const [data, setData] = useState([]);
@@ -11,15 +23,10 @@ const ChoosePlates = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
+  const [selectedOptions, setSelectedOptions] = useState([]);
   const [comment, setComment] = useState('');
 
-  const handleReturnToOrder = () => {
-    try {
-      navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });
-    } catch (error) {
-      console.log(error);
-    }
-  };
+  const handleReturnToOrder = () => navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });
 
   useEffect(() => {
     fetch(`${BASE_URL}/orderservice/GetFoodItems`)
@@ -44,7 +51,9 @@ const ChoosePlates = () => {
         .map((item) => ({
           ...item,
           checked: false,
-          quantity: 0, // Αρχική ποσότητα
+          quantity: 0,
+          extraPrice: 0,
+          selectedOptions: [],
         })),
     }));
   };
@@ -60,7 +69,7 @@ const ChoosePlates = () => {
                   ? {
                       ...item,
                       checked: !item.checked,
-                      quantity: !item.checked ? 1 : 0, // Όταν κάνεις check, η ποσότητα γίνεται 1, αλλιώς 0
+                      quantity: !item.checked ? 1 : 0,
                     }
                   : item
               ),
@@ -69,13 +78,6 @@ const ChoosePlates = () => {
       )
     );
   };
-  
-  const handleItemId = (itemId) => {
-    setSelectedItemId(itemId);
-    setModalVisible(true);
-    fetchRecommendations(itemId);
-  };
-
 
   const adjustQuantity = (categoryId, itemName, delta) => {
     setData((prevData) =>
@@ -88,7 +90,7 @@ const ChoosePlates = () => {
                   ? {
                       ...item,
                       quantity: Math.max(0, item.quantity + delta),
-                      checked: Math.max(0, item.quantity + delta) > 0, // Αν η ποσότητα > 0, να γίνεται checked
+                      checked: Math.max(0, item.quantity + delta) > 0,
                     }
                   : item
               ),
@@ -98,9 +100,10 @@ const ChoosePlates = () => {
     );
   };
 
-  const handleOpenModal = (itemId) => {
+  const handleItemId = (itemId) => {
     setSelectedItemId(itemId);
     setModalVisible(true);
+    fetchRecommendations(itemId);
   };
 
   const fetchRecommendations = async (itemId) => {
@@ -108,129 +111,117 @@ const ChoosePlates = () => {
       const response = await fetch(`${BASE_URL}/orderservice/GetRecommendations?itemId=${encodeURIComponent(itemId)}`);
       const result = await response.json();
       setRecommendations(result);
+      setSelectedOptions([]);
     } catch (error) {
       console.error('Error fetching recommendations:', error);
     }
   };
 
-  const handleAddComment = () => {
-    setData((prevData) =>
-      prevData.map((category) => ({
-        ...category,
-        items: category.items.map((item) =>
-          item.Id === selectedItemId
-            ? {
-                ...item,
-                ItemDescription: `${item.ItemDescription || ''} ${comment}`,
-                comments: [...(item.comments || []), comment],
-                checked: true,         // Ορίζουμε το checked σε true
-                quantity: 1,           // Η ποσότητα γίνεται 1
-              }
-            : item
-        ),
-      }))
+  const toggleRecommendation = (rec) => {
+    setSelectedOptions((prev) =>
+      prev.includes(rec.ItemRecommendationsID) ? prev.filter((id) => id !== rec.ItemRecommendationsID) : [...prev, rec.ItemRecommendationsID]
     );
-    setComment('');              // Καθαρισμός του σχολίου
-    setModalVisible(false);      // Κλείσιμο του modal
   };
+
+const handleAddComment = () => {
+  // Επιλογή των συστάσεων που έχουν επιλεχθεί
+  const selectedRecs = recommendations.filter((rec) => selectedOptions.includes(rec.ItemRecommendationsID));
+  
+  // Υπολογισμός του συνολικού έξτρα κόστους από τις συστάσεις
+const extraPrice = selectedRecs.reduce((sum, rec) => { 
+  const price = parseFloat(rec.RecommendationPrice.replace(',', '.') || 0);
+  const totalSum= sum +price;
+  return totalSum;
+}, 0);
+  // Σύνθεση της περιγραφής (σχόλια και συστάσεις)
+  const combinedDescription = `${comment} ${selectedRecs.map((r) => r.RecommendationDecription).join(', ')}`;
+
+  // Ενημέρωση των δεδομένων με τη νέα περιγραφή και τιμή
+  setData((prevData) =>
+    prevData.map((category) => ({
+      ...category,
+      items: category.items.map((item) =>
+        item.Id === selectedItemId
+          ? {
+              ...item,
+              ItemDescription: combinedDescription.trim(),
+              comments: [...(item.comments || []), comment],
+              checked: true,
+              quantity: 1,
+              extraPrice: extraPrice,  // Ενημέρωση με το νέο extraPrice
+              selectedOptions: selectedOptions, // Αποθήκευση των επιλεγμένων συστάσεων
+            }
+          : item
+      ),
+    }))
+  );
+
+  // Επαναφορά των επιλογών και του σχολίου
+  setComment('');
+  setSelectedOptions([]);
+  setModalVisible(false);
+};
 
 
   const handleCancelComment = () => {
     setComment('');
+    setSelectedOptions([]);
     setModalVisible(false);
   };
 
+  const handleConfirmOrder = async () => {
+    try {
+      const orderData = data.flatMap((category) =>
+        category.items
+          .filter((item) => item.checked && item.quantity > 0)
+          .map((item) => ({
+            itemId: item.Id,
+            name: item.Name,
+            quantity: item.quantity,
+            comment: item.ItemDescription || '',
+            price: parseFloat(item.Price)+parseFloat(item.extraPrice) || 0,
+          }))
+      );
+console.log(orderData);
+      await fetch(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      });
 
- const handleConfirmOrder = async () => {
-          console.log(globalUserID);
-     try {
-       const orderData = data.flatMap((category) =>
-         category.items
-           .filter((item) => item.checked && item.quantity > 0) // Επιλέγουμε μόνο τα τσεκαρισμένα πιάτα με ποσότητα > 0
-           .map((item) => ({
-             itemId: item.Id,
-             name: item.Name,
-             quantity: item.quantity,
-             comment:item.ItemDescription||' '||item.comment, // Προσθέτουμε κενό string αν δεν υπάρχει σχόλιο
-           }))
-       );
-  
-    //   console.error('JSON:'+JSON.stringify(orderData)+'\n');
-    console.log(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}`);
-    console.log(JSON.stringify(orderData));   
-    const response = await fetch(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}`, {
-         method: 'POST',
-         headers: {
-           'Content-Type': 'application/json',
-         },
-         body: JSON.stringify(orderData),
-       });
- 
-       if (response.ok) {
-         const result = await response.json();
-         console.log(globalUserID);
-      //  console.log("Order created successfully:", result);
-       //  alert('Order created successfully!');
-       } else {
-         console.error('Error creating order:', response.statusText+'\n'+JSON.stringify(orderData));
-       //  alert('Failed to create order');
-       }
-     } catch (error) {
-      // console.error('Error creating order:', error);
-      // alert('Error creating order');
-     }
- 
-     navigation.navigate('OrderInfo', { tableNumber: gloabalTableid }); 
-   };
-  
+      navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });
+    } catch (error) {
+      console.error('Error creating order:', error);
+    }
+  };
 
   const renderCategory = ({ item }) => (
     <View style={styles.categoryContainer}>
       <Text style={styles.categoryTitle}>{item.Name}</Text>
-      {item.items.map((foodItem,index) => (
-      <View key={foodItem.itemId || index} style={styles.foodItemContainer}>
+      {item.items.map((foodItem, index) => (
+        <View key={foodItem.itemId || index} style={styles.foodItemContainer}>
           <View style={{ flex: 1 }}>
             <Text style={styles.foodItemName}>{foodItem.Name.trim()}</Text>
-            {foodItem.ItemDescription ? (
-              <Text style={styles.foodItemDescription}>{foodItem.ItemDescription}</Text>
-            ) : null}
+            {foodItem.ItemDescription ? <Text style={styles.foodItemDescription}>{foodItem.ItemDescription}</Text> : null}
+            <Text style={styles.foodItemPrice}>
+              Τιμή: {(parseFloat(foodItem.Price || 0) + parseFloat(foodItem.extraPrice || 0)).toFixed(2)}€
+            </Text>
           </View>
-          {foodItem.Price ? (
-            null
-           // <Text style={styles.foodItemPrice}>{foodItem.Price}€</Text>
-          ) : null}
           <View style={styles.quantityContainer}>
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, -1)}
-            >
+            <TouchableOpacity style={styles.quantityButton} onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, -1)}>
               <Text style={styles.quantityText}>-</Text>
             </TouchableOpacity>
             <Text style={styles.quantityDisplay}>{foodItem.quantity}</Text>
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, 1)}
-            >
+            <TouchableOpacity style={styles.quantityButton} onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, 1)}>
               <Text style={styles.quantityText}>+</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={styles.checkboxContainer}
-            onPress={() => toggleCheck(item.CategoryId, foodItem.Name)}
-          >
-            <View
-              style={[
-                styles.checkbox,
-                foodItem.checked && styles.checkboxChecked, // Ενημερώνει το checkbox αν είναι checked
-              ]}
-            />
+          <TouchableOpacity style={styles.checkboxContainer} onPress={() => toggleCheck(item.CategoryId, foodItem.Name)}>
+            <View style={[styles.checkbox, foodItem.checked && styles.checkboxChecked]} />
           </TouchableOpacity>
-          <TouchableOpacity
-  style={styles.itemIdButton}
-  onPress={() => handleItemId(foodItem.Id)} // Ελέγχει εναλλακτικά πεδία
->
-  <Text style={styles.itemIdButtonText}>...</Text>
-</TouchableOpacity>
+          <TouchableOpacity style={styles.itemIdButton} onPress={() => handleItemId(foodItem.Id)}>
+            <Text style={styles.itemIdButtonText}>...</Text>
+          </TouchableOpacity>
         </View>
       ))}
     </View>
@@ -243,60 +234,50 @@ const ChoosePlates = () => {
       </View>
     );
   }
-  
 
   return (
     <View style={styles.container}>
       <Image source={require('../assets/5134814.png')} style={styles.imgIcon} />
-      <FlatList
-        data={data}
-        renderItem={renderCategory}
-        keyExtractor={(item, index) => index.toString()} 
-      />
+      <FlatList data={data} renderItem={renderCategory} keyExtractor={(item, index) => index.toString()} />
       <TouchableOpacity style={styles.submitButton} onPress={handleConfirmOrder}>
-        <Image
-          source={require('../IMAGE/checkmark_8625365.png')} // Εικόνα κουμπιού επιβεβαίωσης
-          style={styles.submitIcon}
-        />
+        <Image source={require('../IMAGE/checkmark_8625365.png')} style={styles.submitIcon} />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.navButton} onPress={() => handleReturnToOrder()}>
+      <TouchableOpacity style={styles.navButton} onPress={handleReturnToOrder}>
         <Text style={styles.backIcon}>{'↩'}</Text>
       </TouchableOpacity>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Προσθήκη Σημειώσεων</Text>
-            <TextInput
-              style={styles.commentInput}
-              value={comment}
-              onChangeText={setComment}
-              placeholder="Γράψτε το σχόλιό σας"
-            />            <FlatList
-              data={recommendations}
-              keyExtractor={(item,index) => index.toString()}
-              
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.recommendationItem}
-                  onPress={() => setComment(item.RecommendationDecription)}
-                >
-                  <Text style={styles.recommendationText}>{item.RecommendationDecription}</Text>
-                </TouchableOpacity>
-              )}
-            />
 
-            <Button title="OK" style={styles.ModalButtons} onPress={handleAddComment} />
-            <Button title="Cancel" style={styles.ModalButtons}  onPress={handleCancelComment} />
-          </View>
-        </View>
-      </Modal>
+       <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={handleCancelComment}>
+         <View style={styles.modalContainer}>
+           <View style={styles.modalContent}>
+               {recommendations.length > 0 && (
+            <Text style={styles.modalTitle}>Προσθήκη Επιλογών</Text>
+          )}
+                {recommendations.map((rec) => (
+               <TouchableOpacity
+                 key={rec.Id?.toString() || Math.random().toString()}
+                 style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4 }}
+                 onPress={() => toggleRecommendation(rec)}
+               >
+                 <Text >{rec.RecommendationDecription} ({rec.RecommendationPrice}€)   </Text>
+                 <View style={[styles.checkbox, selectedOptions.includes(rec.ItemRecommendationsID) && styles.checkboxChecked]} />
+               </TouchableOpacity>
+             ))}
+             <Text style={styles.modalTitle}>Προσθήκη Σημειώσεων</Text>
+             <TextInput
+               style={styles.commentInput}
+               value={comment}
+               onChangeText={setComment}
+               placeholder="Γράψτε το σχόλιό σας"
+             />
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
+        <Button  title="Άκυρο" onPress={handleCancelComment} />
+        <Button title="ΠΡΟΣΘΗΚΗ" onPress={handleAddComment} />
+      </View>
+           </View>
+         </View>
+       </Modal>
     </View>
-  );  
+  );
 };
 
 const styles = StyleSheet.create({
@@ -438,7 +419,7 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: 'white',
     padding: 20,
-    borderRadius: 60,
+    borderRadius: 10,
     alignItems: 'center',
     width: '80%', 
   },

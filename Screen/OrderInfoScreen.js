@@ -86,14 +86,16 @@ const cancelDelete = () => {
 // Συνάρτηση για το toggle του checkbox
 const toggleCheckbox = (item) => {
   setSelectedItems((prevSelected) => {
-    // Αν το item είναι ήδη στη λίστα, το αφαιρούμε
-    if (prevSelected.some((selected) => selected.Id === item.Id)) {
-      return prevSelected.filter((selected) => selected.Id !== item.Id);
+    if (prevSelected.includes(item.OrderDTLSeq)) {
+      // Αν το OrderDTLSeq είναι ήδη στη λίστα, το αφαιρούμε
+      return prevSelected.filter((selected) => selected !== item.OrderDTLSeq);
+    } else {
+      // Αν δεν είναι στη λίστα, το προσθέτουμε
+      return [...prevSelected, item.OrderDTLSeq];
     }
-    // Αν δεν είναι, το προσθέτουμε
-    return [...prevSelected, item];
   });
 };
+
 
 
 const handleAddPlate = () => { 
@@ -118,12 +120,27 @@ const handleAddDrink = () => {
 
 const handleTicketPayment = () => {
   const itemsToPay = selectedItems.length
-    ? selectedItems 
-    : orderData.filter((item) => item.Status !== 'completed'); 
-    const orderId = itemsToPay.length > 0 ? itemsToPay[0].Orderid : null; 
+    ? selectedItems.map((orderDtlSeq) => {
+        // Βρίσκουμε το item με το συγκεκριμένο OrderDTLSeq
+        const foundItem = orderData.find((item) => item.OrderDTLSeq === orderDtlSeq);
+        
+        // Αν το foundItem είναι undefined, δεν το προσθέτουμε
+        return foundItem ? foundItem : null;
+      }).filter(item => item !== null)  // Αφαιρούμε τα null στοιχεία
+    : orderData.filter((item) => item.Status !== 'completed');  // Εάν δεν υπάρχουν επιλεγμένα, επιλέγουμε τα μη ολοκληρωμένα
 
-  navigation.navigate('PaymentScreen', { items: itemsToPay, orderId: orderId});
+  const orderId = itemsToPay.length > 0 ? itemsToPay[0].Orderid : null;
+
+  // Αν τα itemsToPay είναι άδεια, σημαίνει ότι δεν βρήκαμε τίποτα
+  if (itemsToPay.length === 0) {
+    console.log("Δεν βρέθηκαν επιλεγμένα αντικείμενα.");
+  } else {
+    navigation.navigate('PaymentScreen', { items: itemsToPay, orderId: orderId });
+    setSelectedItems([]);
+  }
 };
+
+
 
 
   useEffect(() => {
@@ -169,35 +186,36 @@ const handleTicketPayment = () => {
   const handlCompleted =(itemId) =>{
 
   }
-  const renderOrderItem = ({ item }) => {
-    const isChecked = selectedItems.some((selected) => selected.Id === item.Id); // Ελέγχουμε αν είναι τσεκαρισμένο
-    return (
-      <View style={styles.orderItem}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.orderText}>
-            {item.Rownum}{') '}{item.ItemName} : ... {item.Price}€{' '}
-            {item.Status === 'completed' && <Text style={styles.checkIcon}>✔</Text>}
-          </Text>
-          <Text style={styles.orderComments}>
-            {item.Comments}
-          </Text>
-        </View>
-        {item.Status !== 'completed' && (
-          <CheckBox
-            checked={isChecked}
-            onPress={() => toggleCheckbox(item)} // Περνάμε ολόκληρο το αντικείμενο
-            checkedColor="#32CD32" // Χρώμα όταν είναι τσεκαρισμένο
-            uncheckedColor="#FF6347" // Χρώμα όταν δεν είναι τσεκαρισμένο
-          />
-        )}
-        {item.Status !== 'completed' && (
-          <TouchableOpacity onPress={() => handleDelete(item.OrderDTLSeq)}>
-            <Text style={styles.crossIcon}>✘</Text>
-          </TouchableOpacity>
-        )}
+const renderOrderItem = ({ item }) => {
+  // Ελέγχουμε αν το OrderDTLSeq είναι στη λίστα των επιλεγμένων
+  const isChecked = selectedItems.includes(item.OrderDTLSeq);
+
+  return (
+    <View style={styles.orderItem}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.orderText}>
+          {item.Rownum}{') '}{item.ItemName} : ... {item.Price}€
+          {item.Status === 'completed' && <Text style={styles.checkIcon}>✔</Text>}
+        </Text>
+        <Text style={styles.orderComments}>{item.Comments}</Text>
       </View>
-    );
-  };
+      {item.Status !== 'completed' && (
+        <CheckBox
+          checked={isChecked}  // Ελέγχουμε αν το συγκεκριμένο OrderDTLSeq είναι επιλεγμένο
+          onPress={() => toggleCheckbox(item)}  // Καλούμε την toggleCheckbox για το συγκεκριμένο item
+          checkedColor="#32CD32"  // Χρώμα όταν είναι τσεκαρισμένο
+          uncheckedColor="#FF6347"  // Χρώμα όταν δεν είναι τσεκαρισμένο
+        />
+      )}
+      {item.Status !== 'completed' && (
+        <TouchableOpacity onPress={() => handleDelete(item.OrderDTLSeq)}>
+          <Text style={styles.crossIcon}>✘</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
   
   return (
     <View style={styles.container}>
@@ -239,9 +257,9 @@ const handleTicketPayment = () => {
 
         {/* Total and Icons */}
         <View style={styles.footer}>
-        <Text style={styles.payedText}>Πληρωμένα: €{payed}</Text>
+        <Text style={styles.payedText}>Πληρωμένα: €{payed.toFixed(2)}</Text>
 
-          <Text style={styles.totalText}>Σύνολο: €{totalAmount}</Text>
+          <Text style={styles.totalText}>Σύνολο: €{totalAmount.toFixed(2)}</Text>
           <View style={styles.footerIcons}>
             <TouchableOpacity  onPress={() => handleDeleteOrder(gloabalTableid)}>
               <Image source={require('../assets/cancelbutton.png')} style={styles.footerIcon} />
@@ -387,7 +405,8 @@ const styles = StyleSheet.create({
   },
   crossIcon: {
     color: '#FF6347',
-    marginRight: 10,
+    marginRight: 5,
+    marginTop:10,
     fontSize: 18,
   },
   checkIcon: {

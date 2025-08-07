@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'reac
 import { useNavigation } from '@react-navigation/native';
 import { setGlobalTotalTablesCount, setGlobalUsername,setGlobalUserID,BASE_URL,setGlobalFoodItemsList } from '../Staff/globalState';
 
-const LoginScreen = () => {
+const LoginScreen =  () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const navigation = useNavigation(); 
