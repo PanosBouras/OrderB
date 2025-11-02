@@ -24,6 +24,7 @@ const [selectedItems, setSelectedItems] = useState([]); // Λίστα για τ�
   const [selectedOptions, setSelectedOptions] = useState([]);
    const [comment, setComment] = useState('');
  const [DatafromItem, setDatafromItem] = useState([]);
+ const [tempPersons, setTempPersons] = useState(globalPersons);
     // Συνάρτηση που καλείται όταν ο χρήστης πατήσει το κουμπί διαγραφής
 const handleDeleteOrder = async (gloabalTableid) => {
   setOrderVisible(true);  // Εμφανίζουμε το διάλογο επιβεβαίωσης
@@ -75,7 +76,6 @@ const fetchOrderData = async () => {
 
     const data = await response.json();
     setOrderData(data); // Ενημερώνουμε την κατάσταση της παραγγελίας με τα νέα δεδομένα
-
   } catch (error) {
     console.error('Error fetching order data:', error);
   }
@@ -417,6 +417,7 @@ const handleTicketPayment = () => {
 
 
   useEffect(() => {
+    setGlobalPersons(1);
     // Fetch orders from the API
     const fetchOrderData = async () => {
       try {
@@ -428,8 +429,10 @@ const handleTicketPayment = () => {
           throw new Error('Network response was not ok');
         }
         const data = await response.json();
-            if(data != null){
+            if(data != null){              
       setGlobalPersons(data[0].Persons);
+    }else{
+       
     }
         setOrderData(data);
         setLoading(false);
@@ -462,6 +465,31 @@ const handleTicketPayment = () => {
   const handlCompleted =(itemId) =>{
 
   }
+
+const handleInputSpinnerOnChange = (value) => {
+  if (orderData.length === 0) {
+    // Αποθηκεύουμε προσωρινά την τιμή
+    
+    setTempPersons(value);
+    setGlobalPersons(value);
+
+  } else {
+      const updatePersons = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/orderservice/UpdatePersonNumberOfTable?tableId=${gloabalTableid}&companyId=${globalCompanyID}&personNumber=${value}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) throw new Error('Failed to update persons');
+        setGlobalPersons(value);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    updatePersons();
+  }
+};
+
 const renderOrderItem = ({ item,index  }) => {
   // Ελέγχουμε αν το OrderDTLSeq είναι στη λίστα των επιλεγμένων
   const isChecked = selectedItems.includes(item.OrderDTLSeq);
@@ -516,7 +544,7 @@ const renderOrderItem = ({ item,index  }) => {
           <Image source={require('../assets/51348143.png')} style={styles.navIcon} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.backIcon} onPress={() => navigation.navigate('Tables')}>
+        <TouchableOpacity style={styles.backIcon} onPress={() => {setGlobalPersons(1); navigation.navigate('Tables')}}>
             <Text style={styles.backIcon}>{'↩'}</Text>
           </TouchableOpacity>
       </View>
@@ -543,6 +571,8 @@ const renderOrderItem = ({ item,index  }) => {
               skin={"clean"}
               editable={false}
               value={globalPersons}
+               onIncrease={(value) => handleInputSpinnerOnChange(value)}
+            onDecrease={(value) => handleInputSpinnerOnChange(value)}
             />
           </View> 
 

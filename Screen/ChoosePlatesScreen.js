@@ -13,7 +13,7 @@ import {
   TextInput,
   Button,
 } from 'react-native';
-import { BASE_URL, gloabalTableid,globalUsername,globalUserID,globalCompanyID } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
+import { BASE_URL, gloabalTableid,globalUsername,globalUserID,globalCompanyID, globalPersons } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
 import { useNavigation } from '@react-navigation/native';
 
 const ChoosePlates = () => {
@@ -197,9 +197,9 @@ const extraPrice = selectedRecs.reduce((sum, rec) => {
       );
  
    //   console.error('JSON:'+JSON.stringify(orderData)+'\n');
-   console.log(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}&companyid=${globalCompanyID}`);
+   console.log(`${BASE_URL}/orderservice/PostCreateOrder?companyid=${globalCompanyID}&tableId=${encodeURIComponent(gloabalTableid)}&userid=${encodeURIComponent(globalUserID)}&username=${encodeURIComponent(globalUsername)}&persons=${encodeURIComponent(globalPersons)}`);
    console.log(JSON.stringify(orderData));   
-   const response = await fetch(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}&companyid=${globalCompanyID}`, {
+   const response = await fetch(`${BASE_URL}/orderservice/PostCreateOrder?companyid=${globalCompanyID}&tableId=${encodeURIComponent(gloabalTableid)}&userid=${encodeURIComponent(globalUserID)}&username=${encodeURIComponent(globalUsername)}&persons=${encodeURIComponent(globalPersons)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
