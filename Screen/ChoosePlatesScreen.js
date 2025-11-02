@@ -13,7 +13,7 @@ import {
   TextInput,
   Button,
 } from 'react-native';
-import { BASE_URL, gloabalTableid, globalUsername, globalUserID } from '../Staff/globalState';
+import { BASE_URL, gloabalTableid,globalUsername,globalUserID,globalCompanyID } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
 import { useNavigation } from '@react-navigation/native';
 
 const ChoosePlates = () => {
@@ -26,7 +26,13 @@ const ChoosePlates = () => {
   const [selectedOptions, setSelectedOptions] = useState([]);
   const [comment, setComment] = useState('');
 
-  const handleReturnToOrder = () => navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });
+  const handleReturnToOrder = () => {
+    try {
+      navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   useEffect(() => {
     fetch(`${BASE_URL}/orderservice/GetFoodItems`)
@@ -56,6 +62,12 @@ const ChoosePlates = () => {
           selectedOptions: [],
         })),
     }));
+  };
+
+  const handleItemId = (itemId) => {
+    setSelectedItemId(itemId);
+    setModalVisible(true);
+    fetchRecommendations(itemId);
   };
 
   const toggleCheck = (categoryId, itemName) => {
@@ -100,7 +112,7 @@ const ChoosePlates = () => {
     );
   };
 
-  const handleItemId = (itemId) => {
+  const handleOpenModal = (itemId) => {
     setSelectedItemId(itemId);
     setModalVisible(true);
     fetchRecommendations(itemId);
@@ -126,7 +138,7 @@ const ChoosePlates = () => {
 const handleAddComment = () => {
   // Επιλογή των συστάσεων που έχουν επιλεχθεί
   const selectedRecs = recommendations.filter((rec) => selectedOptions.includes(rec.ItemRecommendationsID));
-  
+  console.info(selectedRecs);
   // Υπολογισμός του συνολικού έξτρα κόστους από τις συστάσεις
 const extraPrice = selectedRecs.reduce((sum, rec) => { 
   const price = parseFloat(rec.RecommendationPrice.replace(',', '.') || 0);
@@ -170,10 +182,11 @@ const extraPrice = selectedRecs.reduce((sum, rec) => {
   };
 
   const handleConfirmOrder = async () => {
+         console.log(globalUserID);
     try {
       const orderData = data.flatMap((category) =>
         category.items
-          .filter((item) => item.checked && item.quantity > 0)
+          .filter((item) => item.checked && item.quantity > 0) // Επιλέγουμε μόνο τα τσεκαρισμένα πιάτα με ποσότητα > 0
           .map((item) => ({
             itemId: item.Id,
             name: item.Name,
@@ -182,51 +195,67 @@ const extraPrice = selectedRecs.reduce((sum, rec) => {
             price: parseFloat(item.Price)+parseFloat(item.extraPrice) || 0,
           }))
       );
-console.log(orderData);
-      await fetch(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}`, {
+ 
+   //   console.error('JSON:'+JSON.stringify(orderData)+'\n');
+   console.log(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}&companyid=${globalCompanyID}`);
+   console.log(JSON.stringify(orderData));   
+   const response = await fetch(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}&companyid=${globalCompanyID}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(orderData),
       });
 
-      navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });
+      if (response.ok) {
+        const result = await response.json();
+        console.log(globalUserID);
+     //  console.log("Order created successfully:", result);
+      //  alert('Order created successfully!');
+      } else {
+        console.error('Error creating order:', response.statusText+'\n'+JSON.stringify(orderData));
+      //  alert('Failed to create order');
+      }
     } catch (error) {
-      console.error('Error creating order:', error);
+     // console.error('Error creating order:', error);
+     // alert('Error creating order');
     }
+
+    navigation.navigate('OrderInfo', { tableNumber: gloabalTableid }); 
   };
 
-  const renderCategory = ({ item }) => (
-    <View style={styles.categoryContainer}>
-      <Text style={styles.categoryTitle}>{item.Name}</Text>
-      {item.items.map((foodItem, index) => (
-        <View key={foodItem.itemId || index} style={styles.foodItemContainer}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.foodItemName}>{foodItem.Name.trim()}</Text>
-            {foodItem.ItemDescription ? <Text style={styles.foodItemDescription}>{foodItem.ItemDescription}</Text> : null}
-            <Text style={styles.foodItemPrice}>
-              Τιμή: {(parseFloat(foodItem.Price || 0) + parseFloat(foodItem.extraPrice || 0)).toFixed(2)}€
-            </Text>
-          </View>
-          <View style={styles.quantityContainer}>
-            <TouchableOpacity style={styles.quantityButton} onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, -1)}>
-              <Text style={styles.quantityText}>-</Text>
+   const renderCategory = ({ item }) => (
+      <View style={styles.categoryContainer}>
+        <Text style={styles.categoryTitle}>{item.Name}</Text>
+        {item.items.map((foodItem, index) => (
+          <View key={foodItem.itemId || index} style={styles.foodItemContainer}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.foodItemName}>{foodItem.Name.trim()}</Text>
+              {foodItem.ItemDescription ? <Text style={styles.foodItemDescription}>{foodItem.ItemDescription}</Text> : null}
+              <Text style={styles.foodItemPrice}>
+                Τιμή: {(parseFloat(foodItem.Price || 0) + parseFloat(foodItem.extraPrice || 0)).toFixed(2)}€
+              </Text>
+            </View>
+            <View style={styles.quantityContainer}>
+              <TouchableOpacity style={styles.quantityButton} onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, -1)}>
+                <Text style={styles.quantityText}>-</Text>
+              </TouchableOpacity>
+              <Text style={styles.quantityDisplay}>{foodItem.quantity}</Text>
+              <TouchableOpacity style={styles.quantityButton} onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, 1)}>
+                <Text style={styles.quantityText}>+</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.checkboxContainer} onPress={() => toggleCheck(item.CategoryId, foodItem.Name)}>
+              <View style={[styles.checkbox, foodItem.checked && styles.checkboxChecked]} />
             </TouchableOpacity>
-            <Text style={styles.quantityDisplay}>{foodItem.quantity}</Text>
-            <TouchableOpacity style={styles.quantityButton} onPress={() => adjustQuantity(item.CategoryId, foodItem.Name, 1)}>
-              <Text style={styles.quantityText}>+</Text>
+            <TouchableOpacity style={styles.itemIdButton} onPress={() => handleItemId(foodItem.Id)}>
+              <Text style={styles.itemIdButtonText}>...</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.checkboxContainer} onPress={() => toggleCheck(item.CategoryId, foodItem.Name)}>
-            <View style={[styles.checkbox, foodItem.checked && styles.checkboxChecked]} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.itemIdButton} onPress={() => handleItemId(foodItem.Id)}>
-            <Text style={styles.itemIdButtonText}>...</Text>
-          </TouchableOpacity>
-        </View>
-      ))}
-    </View>
-  );
-
+        ))}
+      </View>
+    );
+    
   if (loading) {
     return (
       <View style={styles.loadingContainer}>

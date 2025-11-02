@@ -1,0 +1,7 @@
+rm -rf node_modules // ama den paizei apla sbhse ton fakelo kai to package.lock
+npm install
+expo login
+username:synthemesc
+password:@m2%9WFy
+$env:EAS_SKIP_AUTO_FINGERPRINT=1 // ayto to ebala giati mou eskage sto fingerprint
+eas build --platform android

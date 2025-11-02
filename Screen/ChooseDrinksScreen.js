@@ -11,7 +11,7 @@ import {
   TextInput,
   Button,
 } from 'react-native';
-import { BASE_URL, gloabalTableid,globalUsername,globalUserID } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
+import { BASE_URL, gloabalTableid,globalUsername,globalUserID,globalCompanyID } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
 import { useNavigation } from '@react-navigation/native';
 
 const ChooseDrinks = () => {
@@ -197,9 +197,9 @@ const extraPrice = selectedRecs.reduce((sum, rec) => {
       );
  
    //   console.error('JSON:'+JSON.stringify(orderData)+'\n');
-   console.log(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}`);
+   console.log(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}&companyid=${globalCompanyID}`);
    console.log(JSON.stringify(orderData));   
-   const response = await fetch(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}`, {
+   const response = await fetch(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}&companyid=${globalCompanyID}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -274,7 +274,7 @@ const extraPrice = selectedRecs.reduce((sum, rec) => {
        <TouchableOpacity style={styles.submitButton} onPress={handleConfirmOrder}>
          <Image source={require('../IMAGE/checkmark_8625365.png')} style={styles.submitIcon} />
        </TouchableOpacity>
-       <TouchableOpacity style={styles.navButton} onPress={handleReturnToOrder}>
+       <TouchableOpacity onPress={handleReturnToOrder}>
          <Text style={styles.backIcon}>{'↩'}</Text>
        </TouchableOpacity>
  

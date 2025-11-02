@@ -1,9 +1,12 @@
 import React,{ useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image,Button } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image,Button,Modal,TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import {gloabalTableid,setGloabalTableid,BASE_URL,globalUsername} from '../Staff/globalState';
+import {gloabalTableid,setGloabalTableid,BASE_URL,globalUsername,globalUserID,globalPersons, setGlobalPersons, globalCompanyID} from '../Staff/globalState';
 import Dialog from 'react-native-dialog';
 import { CheckBox } from 'react-native-elements';
+import InputSpinner from "react-native-input-spinner";
+import Icon from 'react-native-vector-icons/FontAwesome';
+
 
 const OrderInfoScreen = ({ route }) => {
 
@@ -15,8 +18,13 @@ const OrderInfoScreen = ({ route }) => {
  const [visible, setVisible] = useState(false);
  const [Ordervisible, setOrderVisible] = useState(false); 
 const [selectedItems, setSelectedItems] = useState([]); // Λίστα για τα τσεκαρισμένα αντικείμενα
-
-// Συνάρτηση που καλείται όταν ο χρήστης πατήσει το κουμπί διαγραφής
+  const [modalVisible, setModalVisible] = useState(false);
+    const [selectedItemId, setSelectedItemId] = useState(null);
+    const [recommendations, setRecommendations] = useState([]);
+  const [selectedOptions, setSelectedOptions] = useState([]);
+   const [comment, setComment] = useState('');
+ const [DatafromItem, setDatafromItem] = useState([]);
+    // Συνάρτηση που καλείται όταν ο χρήστης πατήσει το κουμπί διαγραφής
 const handleDeleteOrder = async (gloabalTableid) => {
   setOrderVisible(true);  // Εμφανίζουμε το διάλογο επιβεβαίωσης
 };
@@ -27,6 +35,270 @@ const handleDelete  =  async (OrderDTLSeq) => {
   setOrderDTLSeqToDelete(OrderDTLSeq);
  setVisible(true);  // Εμφανίζουμε το διάλογο επιβεβαίωσης
 };
+
+const handleDuplicateOrderItem = async (data) => {
+  try {
+    const newOrderData = [{
+      itemId: data.Id,
+      name: data.ItemName,
+      quantity: 1,
+      comment: data.Comments || '',
+      price: parseFloat(data.Price),
+    }];
+console.log(data);
+    const response = await fetch(
+      `${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}&companyid=${globalCompanyID}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newOrderData),
+      }
+    );
+
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+    // Αν η απάντηση έχει χρήσιμα δεδομένα (π.χ. το νέο αντικείμενο), μπορείς να τα χρησιμοποιήσεις. Αλλιώς:
+    await fetchOrderData(); // 🔄 Refresh με τα σωστά δεδομένα από τον server
+
+  } catch (error) {
+    console.error('Error creating order:', error);
+  }
+};
+
+const fetchOrderData = async () => {
+  try {
+    console.log(globalCompanyID);
+    const response = await fetch(
+    `${BASE_URL}/orderservice/GetOrderItems?tableid=${encodeURIComponent(gloabalTableid)}&companyid=${encodeURIComponent(globalCompanyID)}`
+    );
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+    const data = await response.json();
+    setOrderData(data); // Ενημερώνουμε την κατάσταση της παραγγελίας με τα νέα δεδομένα
+
+  } catch (error) {
+    console.error('Error fetching order data:', error);
+  }
+};
+
+
+const handleEditOrderItem = async (item) => {
+  setSelectedItemId(item.OrderDTLSeq);
+  setComment(item.Comments || '');
+
+  try {
+    const response = await fetch(`${BASE_URL}/orderservice/GetRecommendations?itemId=${encodeURIComponent(item.Id)}`);
+    const result = await response.json();
+    setRecommendations(result);
+
+    // Εντοπίζουμε ποια recommendations υπάρχουν μέσα στα σχόλια
+    const alreadySelected = result
+      .filter((rec) =>
+        (item.Comments || '')
+          .toUpperCase()
+          .includes(rec.RecommendationDecription.toUpperCase())
+      )
+      .map((rec) => rec.ItemRecommendationsID);
+
+    setSelectedOptions(alreadySelected);
+    setModalVisible(true);
+  } catch (error) {
+    console.error('Error fetching recommendations:', error);
+  }
+};
+
+
+
+  const handleOpenModal = (itemId) => {
+    setSelectedItemId(itemId);
+    setModalVisible(true);
+    fetchRecommendations(itemId);
+  };
+
+const fetchRecommendations = async (itemId) => {
+  try {
+    const response = await fetch(
+      `${BASE_URL}/orderservice/GetRecommendations?itemId=${encodeURIComponent(itemId)}`
+    );
+    const result = await response.json();
+    setRecommendations(result);
+
+    // ⚡ ΜΗΝ μηδενίζεις εδώ το selectedOptions!
+    // setSelectedOptions([]);  ❌  — ΑΦΑΙΡΕΣΕ ΤΟ!
+  } catch (error) {
+    console.error('Error fetching recommendations:', error);
+  }
+};
+
+const toggleRecommendation = (rec) => {
+  setSelectedOptions((prevSelected) => {
+    let updatedOptions;
+
+    if (prevSelected.includes(rec.ItemRecommendationsID)) {
+      // Αφαιρούμε από το state
+      updatedOptions = prevSelected.filter(
+        (id) => id !== rec.ItemRecommendationsID
+      );
+
+      // Αφαιρούμε και από το comment (με καθαρή λογική)
+      setComment((prev) => {
+        let parts = prev
+          .split(',')
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0);
+
+        parts = parts.filter(
+          (p) =>
+            p.toUpperCase() !==
+            rec.RecommendationDecription.toUpperCase()
+        );
+
+        return parts.join(', ');
+      });
+    } else {
+      // Προσθέτουμε νέο
+      updatedOptions = [...prevSelected, rec.ItemRecommendationsID];
+
+      setComment((prev) => {
+        let parts = prev
+          .split(',')
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0);
+
+        if (
+          !parts.some(
+            (p) =>
+              p.toUpperCase() ===
+              rec.RecommendationDecription.toUpperCase()
+          )
+        ) {
+          parts.push(rec.RecommendationDecription);
+        }
+
+        return parts.join(', ');
+      });
+    }
+
+    return updatedOptions;
+  });
+};
+
+
+  
+const handleEditComment = async () => {
+  try {
+    // Επιλογή των συστάσεων που είναι ενεργές
+    const selectedRecs = recommendations.filter((rec) =>
+      selectedOptions.includes(rec.ItemRecommendationsID)
+    );
+
+    // Υπολογισμός έξτρα τιμής
+    const extraPrice = selectedRecs.reduce((sum, rec) => {
+      const price = parseFloat(
+        (rec.RecommendationPrice || '0').replace(',', '.')
+      );
+      return sum + price;
+    }, 0);
+
+    // ✨ Δημιουργούμε καθαρό comment χωρίς διπλοεγγραφές
+    const baseComment = comment
+      .split(',')
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
+
+    // Προσθέτουμε μόνο όσα selected recommendations ΔΕΝ υπάρχουν ήδη
+    const selectedTexts = selectedRecs.map((r) => r.RecommendationDecription);
+
+    // Φτιάχνουμε ένα μοναδικό, καθαρό array χωρίς διπλές επιλογές
+    const uniqueComments = Array.from(
+      new Set([...baseComment, ...selectedTexts])
+    );
+
+    // Συνθέτουμε το τελικό description
+    const combinedDescription = uniqueComments.join(', ');
+
+    // Προετοιμάζουμε το body για το update API
+    const body = {
+      orderItemId: selectedItemId,
+      comment: combinedDescription.trim(),
+      extraPrice,
+      selectedRecommendations: selectedOptions,
+      username: globalUsername,
+    };
+
+    console.log('📤 Sending body:', body);
+
+    const response = await fetch(
+        `${BASE_URL}/orderservice/UpdateOrderItem?tableId=${tableNumber}&username=${globalUsername}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response}`);
+    }
+
+    await fetchOrderData(); // 🔄 Refresh the list
+    setModalVisible(false);
+  } catch (error) {
+    console.error('Error updating order item:', error);
+  }
+};
+
+  
+    const handleCancelComment = () => {
+      setComment('');
+      setSelectedOptions([]);
+      setModalVisible(false);
+    };
+  
+    const handleConfirmOrder = async () => {
+           console.log(globalUserID);
+      try {
+        const orderData = data.flatMap((category) =>
+          category.items
+            .filter((item) => item.checked && item.quantity > 0) // Επιλέγουμε μόνο τα τσεκαρισμένα πιάτα με ποσότητα > 0
+            .map((item) => ({
+              itemId: item.Id,
+              name: item.Name,
+              quantity: item.quantity,
+              comment: item.ItemDescription || '',
+              price: parseFloat(item.Price)+parseFloat(item.extraPrice) || 0,
+            }))
+        );
+   
+     //   console.error('JSON:'+JSON.stringify(orderData)+'\n');
+     console.log(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}&companyid=${globalCompanyID}`);
+     console.log(JSON.stringify(orderData));   
+     const response = await fetch(`${BASE_URL}/orderservice/PostCreateOrder?tableId=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}&userid=${encodeURIComponent(globalUserID)}&companyid=${globalCompanyID}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(orderData),
+        });
+  
+        if (response.ok) {
+          const result = await response.json();
+          console.log(globalUserID);
+       //  console.log("Order created successfully:", result);
+        //  alert('Order created successfully!');
+        } else {
+          console.error('Error creating order:', response.statusText+'\n'+JSON.stringify(orderData));
+        //  alert('Failed to create order');
+        }
+      } catch (error) {
+       // console.error('Error creating order:', error);
+       // alert('Error creating order');
+      }
+  
+      navigation.navigate('OrderInfo', { tableNumber: gloabalTableid }); 
+    };
+
+
 
 // Συνάρτηση που καλείται για να επιβεβαιώσουμε τη διαγραφή
 const confirmDelete  =  async () => {
@@ -56,6 +328,7 @@ const confirmDelete  =  async () => {
 
 const confirmDeleteOrder = async () => { 
   setOrderData([]);
+  setGlobalPersons(1);
   try {
 
     const response = await fetch(`${BASE_URL}/orderservice/PostDeleteOrder?tableid=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}`, {
@@ -147,7 +420,7 @@ const handleTicketPayment = () => {
     // Fetch orders from the API
     const fetchOrderData = async () => {
       try {
-        const url = `${BASE_URL}/orderservice/GetOrderItems?tableid=${encodeURIComponent(gloabalTableid)}`;
+        const url = `${BASE_URL}/orderservice/GetOrderItems?tableid=${encodeURIComponent(gloabalTableid)}&companyid=${encodeURIComponent(globalCompanyID)}`;
     
         const response = await fetch(url); // Replace with your API endpoint
         
@@ -155,6 +428,9 @@ const handleTicketPayment = () => {
           throw new Error('Network response was not ok');
         }
         const data = await response.json();
+            if(data != null){
+      setGlobalPersons(data[0].Persons);
+    }
         setOrderData(data);
         setLoading(false);
       } catch (error) {
@@ -186,7 +462,7 @@ const handleTicketPayment = () => {
   const handlCompleted =(itemId) =>{
 
   }
-const renderOrderItem = ({ item }) => {
+const renderOrderItem = ({ item,index  }) => {
   // Ελέγχουμε αν το OrderDTLSeq είναι στη λίστα των επιλεγμένων
   const isChecked = selectedItems.includes(item.OrderDTLSeq);
 
@@ -194,22 +470,34 @@ const renderOrderItem = ({ item }) => {
     <View style={styles.orderItem}>
       <View style={{ flex: 1 }}>
         <Text style={styles.orderText}>
-          {item.Rownum}{') '}{item.ItemName} : ... {item.Price}€
-          {item.Status === 'completed' && <Text style={styles.checkIcon}>✔</Text>}
+          {index + 1}{') '}{item.ItemName} : ... {item.Price}€
+          {item.Status === 'completed' && <Text style={styles.addIcon}>✔</Text>}
         </Text>
         <Text style={styles.orderComments}>{item.Comments}</Text>
       </View>
+              <TouchableOpacity onPress={() => handleDuplicateOrderItem(item)}>
+          <Icon name="plus-circle" style={styles.addIcon} />
+        </TouchableOpacity>
+        
+      
+              {item.Status !== 'completed' && (
+        <TouchableOpacity onPress={() => handleEditOrderItem(item)}>
+          <Icon name="edit" style={styles.editIcon} />
+        </TouchableOpacity>
+      )}
+
       {item.Status !== 'completed' && (
         <CheckBox
           checked={isChecked}  // Ελέγχουμε αν το συγκεκριμένο OrderDTLSeq είναι επιλεγμένο
           onPress={() => toggleCheckbox(item)}  // Καλούμε την toggleCheckbox για το συγκεκριμένο item
           checkedColor="#32CD32"  // Χρώμα όταν είναι τσεκαρισμένο
           uncheckedColor="#FF6347"  // Χρώμα όταν δεν είναι τσεκαρισμένο
+           containerStyle={styles.CheckBox}
         />
       )}
       {item.Status !== 'completed' && (
         <TouchableOpacity onPress={() => handleDelete(item.OrderDTLSeq)}>
-          <Text style={styles.crossIcon}>✘</Text>
+                   <Icon name="remove" style={styles.crossIcon} />
         </TouchableOpacity>
       )}
     </View>
@@ -243,8 +531,24 @@ const renderOrderItem = ({ item }) => {
               <Text style={styles.orderNumberText}>{}</Text>
               <Text style={styles.tableNumberText}>{tableNumber}</Text>
             </View>
-          </View>
+            </View>
+             <View style={styles.hdre}>
+            <Text>Αριθμός ατόμων</Text>
+            <InputSpinner 
+              max={100}
+              min={1}
+              step={1}
+              colorMax={"#f04048"}
+              colorMin={"#9b9a61"}
+              skin={"clean"}
+              editable={false}
+              value={globalPersons}
+            />
+          </View> 
+
           <Text style={styles.headerText}>Παραγγελία</Text>
+           
+
         </View>
 
         {/* Order List */}
@@ -291,7 +595,7 @@ const renderOrderItem = ({ item }) => {
     <View style={styles.container}>
       <FlatList
         data={orderData}
-        renderItem={renderOrderItem}a
+        renderItem={renderOrderItem}
         keyExtractor={(item, index) => (item.ITEMID ? item.ITEMID.toString() : index.toString())}
         contentContainerStyle={styles.orderList}
       />
@@ -304,6 +608,38 @@ const renderOrderItem = ({ item }) => {
         <Dialog.Button label="Διαγραφή" onPress={confirmDeleteOrder} />
       </Dialog.Container>
     </View>
+
+       <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={handleCancelComment}>
+         <View style={styles.modalContainer}>
+           <View style={styles.modalContent}>
+               {recommendations.length > 0 && (
+            <Text style={styles.modalTitle}>Επεξεργασία Επιλογών</Text>
+          )}
+                {recommendations.map((rec) => (
+               <TouchableOpacity
+                 key={rec.Id?.toString() || Math.random().toString()}
+                 style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4 }}
+                 onPress={() => toggleRecommendation(rec)}
+               >
+                 <Text >{rec.RecommendationDecription} ({rec.RecommendationPrice}€)   </Text>
+                 <View style={[styles.checkbox, selectedOptions.includes(rec.ItemRecommendationsID) && styles.checkboxChecked]} />
+               </TouchableOpacity>
+             ))}
+             <Text style={styles.modalTitle}>Επεξεργασία Σημειώσεων</Text>
+             <TextInput
+               style={styles.commentInput}
+               value={comment}
+               onChangeText={setComment}
+               placeholder="Γράψτε το σχόλιό σας"
+             />
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
+        <Button  title="Άκυρο" onPress={handleCancelComment} />
+        <Button title="Επικύρωση" onPress={handleEditComment} />
+      </View>
+           </View>
+         </View>
+       </Modal>
+
     </View>
 
 
@@ -344,6 +680,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 10,
+    
   },
   tableText: {
     fontSize: 18,
@@ -366,13 +703,24 @@ const styles = StyleSheet.create({
     top: '10%', // Adjust positioning as needed
     
   },
-  headerText: {
-    fontSize: 50,
-    fontWeight: 'bold',
-    color: '#3D3A2D',
-    textAlign:"center",
-    
+    hdre: {
+    position: 'absolute',
+    top: 0,
+    left: 10,
+    flexDirection: 'column',
+    alignItems: 'center',
   },
+headerText: {
+  fontSize: 35,           // Αν το μέγεθος είναι πολύ μεγάλο, το μειώνουμε για να χωράει καλύτερα
+  fontWeight: 'bold',
+  color: '#3D3A2D',
+  textAlign: "center",   // Κεντράρισμα του κειμένου
+  flex: 1,                // Προσαρμογή για να μην υπερκαλύπτεται το κείμενο
+//  paddingHorizontal: 10,  // Προσθήκη περιθωρίου στα πλάγια ώστε να μην είναι κολλημένο
+  paddingTop: 20,         // Προσθήκη περιθωρίου από πάνω για καλύτερη τοποθέτηση
+  overflow: 'hidden',     // Εξασφαλίζει ότι το κείμενο δεν θα ξεπεράσει το όριο
+}
+,
   orderList: {
     backgroundColor: '#9f9c82',
   position:"relative",
@@ -405,15 +753,31 @@ const styles = StyleSheet.create({
   },
   crossIcon: {
     color: '#FF6347',
-    marginRight: 5,
+    marginRight: 3,
     marginTop:10,
-    fontSize: 18,
+    fontSize: 25,
   },
-  checkIcon: {
-    color: '#32CD32',
-    marginRight: 10,
-    fontSize: 18,
+  CheckBox:{
+    marginLeft: 3,
+    marginRight: 3,
+    marginTop:10,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 0 
+  },
+  addIcon: {
+    color: '#23804d',
+    marginLeft: 3,
+    marginTop:10,
+    fontSize: 25,
 
+  },
+  editIcon:{
+  color: '#464646',
+    marginLeft: 3,
+    marginRight: 3,
+    marginTop:10,
+    fontSize: 25,
   },
   footer: {
     flexDirection: 'row',
@@ -437,20 +801,26 @@ const styles = StyleSheet.create({
     marginTop: "auto",
     marginLeft:-70,
   },
-  totalText: {
-    fontSize: 18,
-    color: '#3D3A2D',
-    backgroundColor:"#BC9A56",
-    textAlign:"right",
-    flexDirection: 'column',
-    marginBottom:80,
-    marginRight:-21,
-    width: 'auto',
-    borderWidth: 5,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    borderColor:'#BC9A56', 
-  },
+totalText: {
+  fontSize:18,
+  color: '#3D3A2D',
+  backgroundColor: "#ac976b",
+//  textAlign: "left",  // Τοποθετούμε το κείμενο στα δεξιά
+// paddingHorizontal: 10,  // Προσθέτουμε περιθώριο για να μην είναι κολλημένο
+  marginBottom: 80,
+  alignItems: 'right',  // Διασφαλίζουμε ότι το κείμενο παραμένει ευθυγραμμισμένο
+  borderWidth: 5,
+  borderBottomLeftRadius: 20,
+  borderBottomRightRadius: 20,
+  borderColor: '#ac976b',
+ // flex: 1,  // Επιτρέπει στο στοιχείο να καταλαμβάνει το διαθέσιμο χώρο
+  //minWidth: 100,  // Μπορείς να προσαρμόσεις αυτό το minWidth σύμφωνα με τις ανάγκες σου
+//  maxWidth: '100%',  // Κάνει το στοιχείο πιο ευέλικτο ανάλογα με το μέγεθος της οθόνης
+  //flexShrink: 1,  // Επιτρέπει στο στοιχείο να μικραίνει όταν δεν υπάρχει αρκετός χώρος
+  //flexWrap: 'wrap',  // Αν το κείμενο είναι μεγάλο, θα αναδιπλωθεί
+}
+
+,
   payedText: {
     fontSize: 18,
     color: '#3D3A2D',
@@ -487,7 +857,75 @@ const styles = StyleSheet.create({
     fontSize: 80,
     color: '#A3844D',
     fontWeight: 'bold',
-   
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Ελαφρύ μαύρο φόντο για να δίνει αίσθηση αδιαφάνειας
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    width: '80%', 
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  commentInput: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginVertical: 10,
+    width: '100%',
+    textTransform: 'uppercase',
+  },
+  recommendationItem: {
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 5,
+    marginVertical: 5,
+    width: '100%',
+  },
+  recommendationText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  commentText: {
+    fontSize: 14,
+    color: '#555',
+    marginLeft: 10,
+  },
+  ModalButtons:{
+    backgroundColor: 'white',
+    padding: 200,
+    borderRadius: 10,
+    alignItems: 'center',
+    width: '80%',
+    alignSelf: 'center',
+    fontSize: 16,
+  },
+    checkboxContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#ccc',
+    borderRadius: 3,
+    backgroundColor: 'transparent',
+  },
+  checkboxChecked: {
+    backgroundColor: '#064908',
   },
 });
 

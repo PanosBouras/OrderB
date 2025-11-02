@@ -1,7 +1,7 @@
 import React, { useState,form } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { setGlobalTotalTablesCount, setGlobalUsername,setGlobalUserID,BASE_URL,setGlobalFoodItemsList } from '../Staff/globalState';
+import { setGlobalTotalTablesCount, setGlobalUsername,setGlobalUserID,BASE_URL,setGlobalFoodItemsList,setGlobalCompanyID } from '../Staff/globalState';
 
 const LoginScreen =  () => {
   const [username, setUsername] = useState('');
@@ -19,13 +19,20 @@ const LoginScreen =  () => {
         },
       });
 
-      const result = await response.text(); 
+      const jsonString = await response.text(); 
+      console.log(jsonString);
       setGlobalUsername(username);
-      totalTables();
+      //totalTables();
       FoodListFun();
-      if (result != null) {
+      const result = JSON.parse(jsonString);
+      console.log(result.companyID);
+      console.log(result.totalTables);
+      if (result != null && result.status == "true") {
      console.log(result);
-     setGlobalUserID(result);
+     setGlobalUserID(result.userId);
+      setGlobalTotalTablesCount(result.totalTables);
+      setGlobalCompanyID(result.companyID);
+
      navigation.navigate('Home');
 
       } else {
