@@ -11,7 +11,7 @@ import {
   TextInput,
   Button,
 } from 'react-native';
-import { BASE_URL, gloabalTableid,globalUsername,globalUserID,globalCompanyID } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
+import { BASE_URL, gloabalTableid,globalUsername,globalUserID,globalCompanyID,globalPersons } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
 import { useNavigation } from '@react-navigation/native';
 
 const ChooseDrinks = () => {
@@ -182,7 +182,7 @@ const extraPrice = selectedRecs.reduce((sum, rec) => {
 
 
   const handleConfirmOrder = async () => {
-         console.log(globalUserID);
+         
     try {
       const orderData = data.flatMap((category) =>
         category.items
