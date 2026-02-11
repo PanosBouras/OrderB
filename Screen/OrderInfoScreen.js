@@ -6,6 +6,8 @@ import Dialog from 'react-native-dialog';
 import { CheckBox } from 'react-native-elements';
 import InputSpinner from "react-native-input-spinner";
 import Icon from 'react-native-vector-icons/FontAwesome';
+import { Swipeable } from 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 
 const OrderInfoScreen = ({ route }) => {
@@ -490,47 +492,71 @@ const handleInputSpinnerOnChange = (value) => {
   }
 };
 
-const renderOrderItem = ({ item,index  }) => {
-  // Ελέγχουμε αν το OrderDTLSeq είναι στη λίστα των επιλεγμένων
+const renderOrderItem = ({ item, index }) => {
   const isChecked = selectedItems.includes(item.OrderDTLSeq);
 
-  return (
-    <View style={styles.orderItem}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.orderText}>
-          {index + 1}{') '}{item.ItemName} : ... {item.Price}€
-          {item.Status === 'completed' && <Text style={styles.addIcon}>✔</Text>}
-        </Text>
-        <Text style={styles.orderComments}>{item.Comments}</Text>
-      </View>
-              <TouchableOpacity onPress={() => handleDuplicateOrderItem(item)}>
-          <Icon name="plus-circle" style={styles.addIcon} />
-        </TouchableOpacity>
-        
-      
-              {item.Status !== 'completed' && (
-        <TouchableOpacity onPress={() => handleEditOrderItem(item)}>
-          <Icon name="edit" style={styles.editIcon} />
-        </TouchableOpacity>
-      )}
+  const renderLeftActions = () => (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <TouchableOpacity
+        style={[styles.swipeButton, { backgroundColor: '#4CAF50' }]} // Πράσινο Add
+        onPress={() => handleDuplicateOrderItem(item)}
+      >
+        <Icon name="plus" size={24} color="white" />
+      </TouchableOpacity>
+    </View>
+  );
 
+  const renderRightActions = () => (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       {item.Status !== 'completed' && (
-        <CheckBox
-          checked={isChecked}  // Ελέγχουμε αν το συγκεκριμένο OrderDTLSeq είναι επιλεγμένο
-          onPress={() => toggleCheckbox(item)}  // Καλούμε την toggleCheckbox για το συγκεκριμένο item
-          checkedColor="#32CD32"  // Χρώμα όταν είναι τσεκαρισμένο
-          uncheckedColor="#FF6347"  // Χρώμα όταν δεν είναι τσεκαρισμένο
-           containerStyle={styles.CheckBox}
-        />
-      )}
-      {item.Status !== 'completed' && (
-        <TouchableOpacity onPress={() => handleDelete(item.OrderDTLSeq)}>
-                   <Icon name="remove" style={styles.crossIcon} />
-        </TouchableOpacity>
+        <>
+          <TouchableOpacity
+            style={[styles.swipeButton, { backgroundColor: '#2196F3' }]} // Μπλε Edit
+            onPress={() => handleEditOrderItem(item)}
+          >
+            <Icon name="edit" size={24} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.swipeButton, { backgroundColor: '#F44336' }]} // Κόκκινο Delete
+            onPress={() => handleDelete(item.OrderDTLSeq)}
+          >
+            <Icon name="trash" size={24} color="white" />
+          </TouchableOpacity>
+        </>
       )}
     </View>
   );
+
+  return (
+    <Swipeable
+      renderLeftActions={renderLeftActions}
+      renderRightActions={renderRightActions}
+      overshootFriction={10}
+    >
+      <View style={styles.orderItem}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.orderText}>
+            {index + 1}) {item.ItemName} : ... {item.Price}€
+            {item.Status === 'completed' && <Text style={styles.addIcon}> ✔</Text>}
+          </Text>
+          <Text style={styles.orderComments}>{item.Comments}</Text>
+        </View>
+
+        {item.Status !== 'completed' && (
+          <CheckBox
+            checked={isChecked}
+            onPress={() => toggleCheckbox(item)}
+            checkedColor="#32CD32"
+            uncheckedColor="#FF6347"
+            containerStyle={styles.CheckBox}
+          />
+        )}
+      </View>
+    </Swipeable>
+  );
 };
+
 
   
   return (
@@ -580,7 +606,7 @@ const renderOrderItem = ({ item,index  }) => {
            
 
         </View>
-
+  <GestureHandlerRootView style={{ flex: 1 }}>
         {/* Order List */}
         <FlatList
           data={orderData}
@@ -588,7 +614,7 @@ const renderOrderItem = ({ item,index  }) => {
           keyExtractor={(item, index) => (item.ITEMID ? item.ITEMID.toString() : index.toString())}
           contentContainerStyle={styles.orderList}
         />
-
+</GestureHandlerRootView>
         {/* Total and Icons */}
         <View style={styles.footer}>
         <Text style={styles.payedText}>Πληρωμένα: €{payed.toFixed(2)}</Text>
@@ -763,6 +789,7 @@ headerText: {
   orderItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    backgroundColor: '#9f9c82',
     padding: 10,
     borderBottomColor: '#7F725E',
     borderBottomWidth: 1,
@@ -957,6 +984,15 @@ totalText: {
   checkboxChecked: {
     backgroundColor: '#064908',
   },
+  swipeButton: {
+  justifyContent: 'center',
+  alignItems: 'center',
+  width: 70,
+  height: '100%',
+  marginHorizontal: 2,
+  borderRadius: 5,
+},
+
 });
 
 export default OrderInfoScreen;

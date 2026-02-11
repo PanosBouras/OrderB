@@ -14,6 +14,13 @@ const HomeScreen = () => {
     // navigation.navigate('SettingsScreen'); // Uncomment and adjust this line to navigate to the Settings screen
   };
 
+    const handleShowOrdersPress = () => {
+      navigation.navigate('ShowOrders');
+    //Alert.alert('Settings button pressed!');
+    // navigation.navigate('SettingsScreen'); // Uncomment and adjust this line to navigate to the Settings screen
+  };
+
+
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={handleChecklistPress}>
@@ -24,6 +31,12 @@ const HomeScreen = () => {
       </TouchableOpacity>
 
       <TouchableOpacity onPress={handleSettingsPress}>
+        <Image
+          source={require('../assets/settings.png')} // Replace with your path
+          style={styles.image}
+        />
+      </TouchableOpacity>
+            <TouchableOpacity onPress={handleShowOrdersPress}>
         <Image
           source={require('../assets/settings.png')} // Replace with your path
           style={styles.image}

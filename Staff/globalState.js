@@ -39,8 +39,8 @@ export const setGlobalCompanyID = (value) => {
 //export const BASE_URL = 'http://192.168.1.186';
 //export const BASE_URL = 'http://2.86.224.176';
 //export const BASE_URL = 'http://85.74.192.220';
-//export const BASE_URL = 'https://orderb.hopto.org';
-export const BASE_URL = 'https://orderb.ddns.net';
+export const BASE_URL = 'https://orderb.hopto.org';
+//export const BASE_URL = 'https://orderb.ddns.net';
 
 export const getOrderItemsUrl = (value) => {
   BASE_URL=value;

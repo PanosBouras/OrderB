@@ -38,6 +38,7 @@ const LoginScreen =  () => {
       } else {
       //  Alert.alert('Login Failed', 'Invalid credentials, please try again.');
     alert("Wrong username or password");
+    console.log(result);
       console.log("Wrong username or password");
 
       
