@@ -119,7 +119,7 @@ const ChooseDrinks = () => {
 
   const fetchRecommendations = async (itemId) => {
     try {
-      const response = await fetch(`${BASE_URL}/orderservice/GetRecommendations?itemId=${encodeURIComponent(itemId)}`);
+      const response = await fetch(`${BASE_URL}/orderservice/GetRecommendations?CompanyID=${globalCompanyID}&itemId=${encodeURIComponent(itemId)}`);
       const result = await response.json();
       setRecommendations(result);
     } catch (error) {
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Ελαφρύ μαύρο φόντο για να δίνει αίσθηση αδιαφάνειας
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
   },
   modalContent: {
     backgroundColor: 'white',

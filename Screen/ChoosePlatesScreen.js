@@ -120,7 +120,7 @@ const ChoosePlates = () => {
 
   const fetchRecommendations = async (itemId) => {
     try {
-      const response = await fetch(`${BASE_URL}/orderservice/GetRecommendations?itemId=${encodeURIComponent(itemId)}`);
+        const response = await fetch(`${BASE_URL}/orderservice/GetRecommendations?CompanyID=${globalCompanyID}&itemId=${encodeURIComponent(itemId)}`);
       const result = await response.json();
       setRecommendations(result);
       setSelectedOptions([]);

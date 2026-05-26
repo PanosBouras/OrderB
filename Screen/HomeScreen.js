@@ -6,42 +6,52 @@ const HomeScreen = () => {
   const handleChecklistPress = () => {
     navigation.navigate('Tables');
    // Alert.alert('Checklist button pressed!');
-    // navigation.navigate('ChecklistScreen'); // Uncomment and adjust this line to navigate to the Checklist screen
+    // navigation.navigate('ChecklistScreen'); 
+  };
+
+      const handleShowOrdersPress = () => {
+      navigation.navigate('ShowOrders');
+    //Alert.alert('Settings button pressed!');
+    // navigation.navigate('SettingsScreen'); 
   };
 
   const handleSettingsPress = () => {
-    Alert.alert('Settings button pressed!');
-    // navigation.navigate('SettingsScreen'); // Uncomment and adjust this line to navigate to the Settings screen
+    navigation.navigate("MainSettings");
   };
 
-    const handleShowOrdersPress = () => {
-      navigation.navigate('ShowOrders');
-    //Alert.alert('Settings button pressed!');
-    // navigation.navigate('SettingsScreen'); // Uncomment and adjust this line to navigate to the Settings screen
-  };
+const handleShowReportsPress = () =>{
+  Alert.alert("Under construction");
+  //navigation.navigate('ShowReports');
+}
 
 
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={handleChecklistPress}>
         <Image
-          source={require('../assets/checklist.png')} // Replace with your path
+          source={require('../assets/checklist.png')} 
+          style={styles.image}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handleShowOrdersPress}>
+        <Image
+          source={require('../assets/ding.png')}
+          style={styles.image}
+        />
+      </TouchableOpacity>
+            <TouchableOpacity onPress={handleShowReportsPress}>
+        <Image
+          source={require('../assets/dataReport.png')} 
+          style={styles.image}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handleSettingsPress}>
+        <Image
+          source={require('../assets/settings.png')} 
           style={styles.image}
         />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={handleSettingsPress}>
-        <Image
-          source={require('../assets/settings.png')} // Replace with your path
-          style={styles.image}
-        />
-      </TouchableOpacity>
-            <TouchableOpacity onPress={handleShowOrdersPress}>
-        <Image
-          source={require('../assets/settings.png')} // Replace with your path
-          style={styles.image}
-        />
-      </TouchableOpacity>
     </View>
   );
 };
@@ -51,7 +61,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5DC', // Beige background color
+    backgroundColor: '#F5F5DC', 
   },
   image: {
     width: 100,

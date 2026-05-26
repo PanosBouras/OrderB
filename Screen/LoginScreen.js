@@ -9,7 +9,7 @@ const LoginScreen =  () => {
   const navigation = useNavigation(); 
   const handleLogin = async () => {
     const url = `${BASE_URL}/orderservice/Login?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
- 
+ console.log(url);
     try {
       const response = await fetch(url, {
         method: 'GET',
@@ -48,6 +48,7 @@ const LoginScreen =  () => {
       //Alert.alert('Login Failed', 'Something went wrong. Please try again later.');
       //alert.show("Alert test");
       console.log(error);
+      console.log(url);
       alert("URL:"+url+"\n"+error);
     }
   };

@@ -61,7 +61,7 @@ console.log(data);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
     // Αν η απάντηση έχει χρήσιμα δεδομένα (π.χ. το νέο αντικείμενο), μπορείς να τα χρησιμοποιήσεις. Αλλιώς:
-    await fetchOrderData(); // 🔄 Refresh με τα σωστά δεδομένα από τον server
+    await fetchOrderData(); // Refresh
 
   } catch (error) {
     console.error('Error creating order:', error);
@@ -89,7 +89,7 @@ const handleEditOrderItem = async (item) => {
   setComment(item.Comments || '');
 
   try {
-    const response = await fetch(`${BASE_URL}/orderservice/GetRecommendations?itemId=${encodeURIComponent(item.Id)}`);
+     const response = await fetch(`${BASE_URL}/orderservice/GetRecommendations?CompanyID=${globalCompanyID}&itemId=${encodeURIComponent(itemId)}`);
     const result = await response.json();
     setRecommendations(result);
 
@@ -120,13 +120,11 @@ const handleEditOrderItem = async (item) => {
 const fetchRecommendations = async (itemId) => {
   try {
     const response = await fetch(
-      `${BASE_URL}/orderservice/GetRecommendations?itemId=${encodeURIComponent(itemId)}`
+     `${BASE_URL}/orderservice/GetRecommendations?CompanyID=${globalCompanyID}&itemId=${encodeURIComponent(itemId)}`
     );
     const result = await response.json();
     setRecommendations(result);
-
-    // ⚡ ΜΗΝ μηδενίζεις εδώ το selectedOptions!
-    // setSelectedOptions([]);  ❌  — ΑΦΑΙΡΕΣΕ ΤΟ!
+ 
   } catch (error) {
     console.error('Error fetching recommendations:', error);
   }
@@ -202,7 +200,6 @@ const handleEditComment = async () => {
       return sum + price;
     }, 0);
 
-    // ✨ Δημιουργούμε καθαρό comment χωρίς διπλοεγγραφές
     const baseComment = comment
       .split(',')
       .map((c) => c.trim())
@@ -226,19 +223,19 @@ const handleEditComment = async () => {
       extraPrice,
       selectedRecommendations: selectedOptions,
       username: globalUsername,
+      status:1,
     };
 
     console.log('📤 Sending body:', body);
 
     const response = await fetch(
-        `${BASE_URL}/orderservice/UpdateOrderItem?tableId=${tableNumber}&username=${globalUsername}`,
+        `${BASE_URL}/orderservice/OrderItems/UpdateOrderItem?companyID=${globalCompanyID}?tableId=${tableNumber}&username=${globalUsername}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }
     );
-
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response}`);
     }
@@ -306,10 +303,10 @@ const handleEditComment = async () => {
 const confirmDelete  =  async () => {
   // Διαγραφή του στοιχείου από τον πίνακα δεδομένων
   setOrderData(orderData.filter(order => order.OrderDTLSeq !== orderDTLSeqToDelete));
-  //console.log(orderDTLSeqToDelete);
+  console.log(`${BASE_URL}/orderservice/PostDeleteItemOrder?companyID=${globalCompanyID}?orderItemSeq=${encodeURIComponent(orderDTLSeqToDelete)}&username=${encodeURIComponent(globalUsername)}`);
   try {
 
-            const response = await fetch(`${BASE_URL}/orderservice/PostDeleteItemOrder?orderItemSeq=${encodeURIComponent(orderDTLSeqToDelete)}&username=${encodeURIComponent(globalUsername)}`, {
+            const response = await fetch(`${BASE_URL}/orderservice/PostDeleteItemOrder?companyID=${globalCompanyID}&orderItemSeq=${encodeURIComponent(orderDTLSeqToDelete)}&username=${encodeURIComponent(globalUsername)}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -333,7 +330,7 @@ const confirmDeleteOrder = async () => {
   setGlobalPersons(1);
   try {
 
-    const response = await fetch(`${BASE_URL}/orderservice/PostDeleteOrder?tableid=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}`, {
+    const response = await fetch(`${BASE_URL}/orderservice/PostDeleteOrder?companyID=${globalCompanyID}&tableid=${encodeURIComponent(gloabalTableid)}&username=${encodeURIComponent(globalUsername)}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -425,7 +422,7 @@ const handleTicketPayment = () => {
       try {
         const url = `${BASE_URL}/orderservice/GetOrderItems?tableid=${encodeURIComponent(gloabalTableid)}&companyid=${encodeURIComponent(globalCompanyID)}`;
     
-        const response = await fetch(url); // Replace with your API endpoint
+        const response = await fetch(url);
         
         if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -511,14 +508,14 @@ const renderOrderItem = ({ item, index }) => {
       {item.Status !== 'completed' && (
         <>
           <TouchableOpacity
-            style={[styles.swipeButton, { backgroundColor: '#2196F3' }]} // Μπλε Edit
+            style={[styles.swipeButton, { backgroundColor: '#2196F3' }]}
             onPress={() => handleEditOrderItem(item)}
           >
             <Icon name="edit" size={24} color="white" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.swipeButton, { backgroundColor: '#F44336' }]} // Κόκκινο Delete
+            style={[styles.swipeButton, { backgroundColor: '#F44336' }]}
             onPress={() => handleDelete(item.OrderDTLSeq)}
           >
             <Icon name="trash" size={24} color="white" />
@@ -533,7 +530,7 @@ const renderOrderItem = ({ item, index }) => {
       renderLeftActions={renderLeftActions}
       renderRightActions={renderRightActions}
       overshootFriction={10}
-    >
+    > 
       <View style={styles.orderItem}>
         <View style={{ flex: 1 }}>
           <Text style={styles.orderText}>
@@ -585,7 +582,6 @@ const renderOrderItem = ({ item, index }) => {
               <Text style={styles.orderNumberText}>{}</Text>
               <Text style={styles.tableNumberText}>{tableNumber}</Text>
             </View>
-            </View>
              <View style={styles.hdre}>
             <Text>Αριθμός ατόμων</Text>
             <InputSpinner 
@@ -601,19 +597,24 @@ const renderOrderItem = ({ item, index }) => {
             onDecrease={(value) => handleInputSpinnerOnChange(value)}
             />
           </View> 
+            </View>
 
           <Text style={styles.headerText}>Παραγγελία</Text>
            
 
         </View>
-  <GestureHandlerRootView style={{ flex: 1 }}>
-        {/* Order List */}
-        <FlatList
-          data={orderData}
-          renderItem={renderOrderItem}
-          keyExtractor={(item, index) => (item.ITEMID ? item.ITEMID.toString() : index.toString())}
-          contentContainerStyle={styles.orderList}
-        />
+<GestureHandlerRootView style={{ flex: 1 }}>
+  <View style={{ flex: 1, position: 'relative' }}>
+    <FlatList
+      data={orderData}
+      renderItem={renderOrderItem}
+      keyExtractor={(item, index) => (item.ITEMID ? item.ITEMID.toString() : index.toString())}
+      contentContainerStyle={styles.orderList}
+      ListHeaderComponent={
+        <Image source={require('../assets/blockwiresspiral.png')} style={styles.wirespirall}/>
+      }
+    />
+  </View>
 </GestureHandlerRootView>
         {/* Total and Icons */}
         <View style={styles.footer}>
@@ -631,12 +632,19 @@ const renderOrderItem = ({ item, index }) => {
         </View>
       </View>
        <View style={styles.container}>
-      <FlatList
-        data={orderData}
-        renderItem={renderOrderItem}
-        keyExtractor={(item, index) => (item.ITEMID ? item.ITEMID.toString() : index.toString())}
-        contentContainerStyle={styles.orderList}
-      />
+<GestureHandlerRootView style={{ flex: 1 }}>
+  <View style={{ flex: 1, position: 'relative' }}>
+    <FlatList
+      data={orderData}
+      renderItem={renderOrderItem}
+      keyExtractor={(item, index) => (item.ITEMID ? item.ITEMID.toString() : index.toString())}
+      contentContainerStyle={styles.orderList}
+      ListHeaderComponent={
+        <Image source={require('../assets/blockwiresspiral.png')} style={styles.wirespirall} />
+      }
+    />
+  </View>
+</GestureHandlerRootView>
 
       <Dialog.Container visible={visible}>
         <Dialog.Title>Επιβεβαίωση Διαγραφής</Dialog.Title>
@@ -649,12 +657,19 @@ const renderOrderItem = ({ item, index }) => {
 
 
     <View style={styles.container}>
-      <FlatList
-        data={orderData}
-        renderItem={renderOrderItem}
-        keyExtractor={(item, index) => (item.ITEMID ? item.ITEMID.toString() : index.toString())}
-        contentContainerStyle={styles.orderList}
-      />
+<GestureHandlerRootView style={{ flex: 1 }}>
+  <View style={{ flex: 1, position: 'relative' }}>
+    <FlatList 
+      data={orderData}
+      renderItem={renderOrderItem}
+      keyExtractor={(item, index) => (item.ITEMID ? item.ITEMID.toString() : index.toString())}
+      contentContainerStyle={styles.orderList}
+      ListHeaderComponent={
+        <Image source={require('../assets/blockwiresspiral.png')} style={styles.wirespirall} />
+      }
+    />
+  </View>
+</GestureHandlerRootView>
 
       <Dialog.Container visible={Ordervisible}>
         <Dialog.Title>Επιβεβαίωση Διαγραφής</Dialog.Title>
@@ -732,60 +747,58 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#e9e8da',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    
-  },
+header: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 10,
+},
   tableText: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#3D3A2D',
   },
-  ticketContainer: {
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
+ticketContainer: {
+  flexDirection: 'column',
+  alignItems: 'center',
+},
   ticketImage: {
     width: 80,
     height: 80, // Adjust this size based on your image's aspect ratio
     resizeMode: 'contain',
     top:0,
-    right:60,
+    right:80,
   },
   ticketTextContainer: {
     position: 'absolute',
     top: '10%', // Adjust positioning as needed
-    
+    right:90,
   },
-    hdre: {
-    position: 'absolute',
-    top: 0,
-    left: 10,
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
+hdre: {
+  flexDirection: 'column',
+  alignItems: 'center',
+  marginTop: '-70',
+  marginLeft: '20',
+  flex: 1,        // ← παίρνει ίσο χώρο
+},
 headerText: {
-  fontSize: 35,           // Αν το μέγεθος είναι πολύ μεγάλο, το μειώνουμε για να χωράει καλύτερα
+  fontSize: 35,
   fontWeight: 'bold',
   color: '#3D3A2D',
-  textAlign: "center",   // Κεντράρισμα του κειμένου
-  flex: 1,                // Προσαρμογή για να μην υπερκαλύπτεται το κείμενο
-//  paddingHorizontal: 10,  // Προσθήκη περιθωρίου στα πλάγια ώστε να μην είναι κολλημένο
-  paddingTop: 20,         // Προσθήκη περιθωρίου από πάνω για καλύτερη τοποθέτηση
-  overflow: 'hidden',     // Εξασφαλίζει ότι το κείμενο δεν θα ξεπεράσει το όριο
+  textAlign: 'center',
+  flex: 1,        // ← παίρνει ίσο χώρο
+  paddingTop: 30,
 }
 ,
-  orderList: {
-    backgroundColor: '#9f9c82',
-  position:"relative",
-    flexGrow: 1,
-    borderWidth: 5,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderColor:'#9f9c82',
-  },
+orderList: {
+  backgroundColor: '#9f9c82',
+  position: "relative",
+  flexGrow: 1,
+  borderWidth: 5,
+  borderTopLeftRadius: 20,
+  borderTopRightRadius: 20,
+  borderColor: '#9f9c82',
+},
   orderItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -901,6 +914,13 @@ totalText: {
     marginLeft: 20,
     resizeMode: 'contain',
   },
+wirespirall: {
+  top: -37,
+  left: 0,
+  width: '100%',
+  height: 60, // ύψος της μπάρας που φαίνεται στην εικόνα
+  resizeMode: 'cover',
+},
   paginationText: {
     fontSize: 60,
     color: '#A3844D',

@@ -20,6 +20,17 @@ const PaymentScreen = ({ route }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false); // State για το loader
 
+  const [showCashDetails, setShowCashDetails] = useState(false);
+const [receivedCash, setReceivedCash] = useState(0);
+const [denominationCounts, setDenominationCounts] = useState({});
+const denominations = [
+  500, 200, 100,
+  50, 20, 10,
+  5, 2, 1,
+  0.5, 0.2, 0.1,
+  0.05, 0.02, 0.01
+];
+
   // Συνάρτηση για ενημέρωση του ποσού
   const updateAmount = (newAmount, paymentType) => {
     if (paymentType === 'cash') {
@@ -31,15 +42,52 @@ const PaymentScreen = ({ route }) => {
     }
   };
 
-  const handleCashCheck = () => {
-    setIsCashChecked(!isCashChecked);
-    if (!isCashChecked) {
-      setCashAmount(totalAmount);  // Όλο το ποσό πηγαίνει στα μετρητά
-      setCardAmount(0);            // Το ποσό για την κάρτα γίνεται 0
+const handleCashCheck = () => {
+  const newValue = !isCashChecked;
+  setIsCashChecked(newValue);
+
+  if (newValue) {
+    setShowCashDetails(true);
+    setCardAmount(0);
+  } else {
+    setShowCashDetails(false);
+    setReceivedCash(0);
+    setCashAmount(0);
+  }
+};
+
+const handleDenominationPress = (value, type) => {
+  setDenominationCounts(prevCounts => {
+    const current = prevCounts[value] || 0;
+    let newCount = current;
+
+    if (type === 'add') {
+      newCount = current + 1;
     } else {
-      setCashAmount(0);            // Το ποσό για τα μετρητά γίνεται 0
+      newCount = current - 1;
+      if (newCount < 0) newCount = 0;
     }
-  };
+
+    const updatedCounts = {
+      ...prevCounts,
+      [value]: newCount
+    };
+
+    // Υπολογισμός συνολικού ποσού
+    const total = Object.keys(updatedCounts).reduce((sum, key) => {
+      return sum + parseFloat(key) * updatedCounts[key];
+    }, 0);
+
+    const fixedTotal = parseFloat(total.toFixed(2));
+
+    setReceivedCash(fixedTotal);
+    setCashAmount(fixedTotal);
+
+    return updatedCounts;
+  });
+};
+
+const change = receivedCash - totalAmount;
 
   const handleCardCheck = () => {
     setIsCardChecked(!isCardChecked);
@@ -51,44 +99,67 @@ const PaymentScreen = ({ route }) => {
     }
   };
 
-  const handlePayment = async () => {
-    if (!isCashChecked && !isCardChecked) {
-      setErrorMessage('Πρέπει να επιλέξετε έναν τρόπο πληρωμής.');
+const handlePayment = async () => {
+  if (!isCashChecked && !isCardChecked) {
+    setErrorMessage('Πρέπει να επιλέξετε έναν τρόπο πληρωμής.');
+    return;
+  }
+
+  if (isCashChecked) {
+    if (receivedCash < totalAmount) {
+      setErrorMessage("Τα χρήματα δεν καλύπτουν το τελικό ποσό.");
       return;
     }
+  }
 
-    const requestData = {
-      OrderId: orderId,
-      Items: paymentItems.map(({ OrderDTLSeq, Price }) => ({ OrderDTLSeq, Price })),
-      Cash: cashAmount,
-      Card: cardAmount,
-    };
+  let finalCash = 0;
+  let finalCard = 0;
 
-    console.log(requestData);
+  if (isCashChecked) {
+    finalCash = totalAmount; 
+  }
 
-    setIsLoading(true); // Ενεργοποιούμε το loader
+  if (isCardChecked) {
+    finalCard = totalAmount;
+  }
 
-    try {
-      const response = await fetch(`${BASE_URL}/orderservice/PostPaymentRequest?username=${encodeURIComponent(globalUsername)}`, {
+  const requestData = {
+    OrderId: orderId,
+    Items: paymentItems.map(({ OrderDTLSeq, Price }) => ({ OrderDTLSeq, Price })),
+    Cash: finalCash,
+    Card: finalCard,
+  };
+
+  console.log("REQUEST:", requestData);
+
+  setIsLoading(true);
+
+  try {
+    const response = await fetch(
+      `${BASE_URL}/orderservice/PostPaymentRequest?username=${encodeURIComponent(globalUsername)}`,
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData),
-      });
-
-      const result = await response.text();
-      const isPaymentSuccessful = result === 'true';
-      if (isPaymentSuccessful) {
-        navigation.navigate('Tables');
-      } else {
-        navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });
       }
-    } catch (error) {
-      console.error('Payment failed:', error);
+    );
+
+    const result = await response.text();
+    const isPaymentSuccessful = result === 'true';
+
+    if (isPaymentSuccessful) {
+      navigation.navigate('Tables');
+    } else {
       navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });
-    } finally {
-      setIsLoading(false); // Απενεργοποιούμε το loader
     }
-  };
+
+  } catch (error) {
+    console.error('Payment failed:', error);
+    navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleCancel = () => {
     navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });
@@ -129,7 +200,66 @@ const PaymentScreen = ({ route }) => {
             editable={isCashChecked}
             keyboardType="numeric" // Εισαγωγή αριθμών
           />
+    
         </View>
+              {showCashDetails && (
+  <View style={styles.cashDetailsContainer}>
+
+    <Text style={styles.receivedText}>
+      Δόθηκαν: {receivedCash.toFixed(2)}€
+    </Text>
+
+    <Text style={styles.changeText}>
+      Ρέστα: {change > 0 ? change.toFixed(2) : '0.00'}€
+    </Text>
+
+    <FlatList
+      data={denominations}
+      keyExtractor={(item) => item.toString()}
+      numColumns={3}
+renderItem={({ item }) => {
+  const count = denominationCounts[item] || 0;
+
+  return (
+    <View style={styles.denominationWrapper}>
+
+      {/* Κύκλος ποσότητας */}
+      <View style={styles.countCircle}>
+        <Text style={styles.countCircleText}>
+          {count}
+        </Text>
+      </View>
+
+      {/* Κουμπιά και ποσό */}
+      <View style={styles.denominationRow}>
+
+        <TouchableOpacity
+          style={styles.minusButton}
+          onPress={() => handleDenominationPress(item, 'subtract')}
+        >
+          <Text style={styles.buttonTextSmall}>-</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.denominationValue}>
+          {item}€
+        </Text>
+
+        <TouchableOpacity
+          style={styles.plusButton}
+          onPress={() => handleDenominationPress(item, 'add')}
+        >
+          <Text style={styles.buttonTextSmall}>+</Text>
+        </TouchableOpacity>
+
+      </View>
+
+    </View>
+  );
+}}
+    />
+
+  </View>
+)}
         <View style={styles.paymentOption}>
           <CheckBox
             value={isCardChecked}
@@ -260,6 +390,109 @@ const styles = StyleSheet.create({
     left: '50%',
     transform: [{ translateX: -50 }, { translateY: -50 }],
   },
+  cashDetailsContainer: {
+  marginTop: 15,
+  backgroundColor: '#D8D2B0',
+  padding: 0,
+  borderRadius: 10,
+},
+
+denominationRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flex: 1,
+  margin: 5,
+  padding: 0,
+  backgroundColor: '#B5AA7A',
+  borderRadius: 8,
+},
+
+plusButton: {
+  backgroundColor: '#32CD32',
+  paddingHorizontal: 10,
+  paddingVertical: 5,
+  borderRadius: 5,
+},
+
+minusButton: {
+  backgroundColor: '#FF6347',
+  paddingHorizontal: 10,
+  paddingVertical: 5,
+  borderRadius: 5,
+},
+
+denominationText: {
+  color: '#FFF',
+  fontWeight: 'bold',
+  fontSize: 16,
+},
+
+denominationValue: {
+  fontWeight: 'bold',
+  fontSize: 14,
+  color: '#3D3A2D',
+},
+
+receivedText: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  marginBottom: 5,
+},
+
+changeText: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: '#3D3A2D',
+  marginBottom: 10,
+},
+denominationWrapper: {
+  flex: 1,
+  alignItems: 'center',
+  margin: 5,
+},
+
+countCircle: {
+  position: 'absolute',
+  top: -10,
+  backgroundColor: '#FFF',
+  width: 28,
+  height: 28,
+  borderRadius: 10,
+  justifyContent: 'center',
+  alignItems: 'center',
+  elevation: 3,
+  zIndex: 10,
+},
+
+countCircleText: {
+  fontWeight: 'bold',
+  fontSize: 14,
+  color: '#000',
+},
+
+denominationRow: {
+  width: '100%',
+  backgroundColor: '#B5AA7A',
+  borderRadius: 12,
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  paddingVertical: 8,
+  //paddingHorizontal: 15,
+},
+
+denominationValue: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  color: '#3D3A2D',
+},
+
+buttonTextSmall: {
+  color: '#FFF',
+  fontSize: 18,
+  fontWeight: 'bold',
+},
 });
 
 export default PaymentScreen;

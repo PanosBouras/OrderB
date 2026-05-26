@@ -1,16 +1,15 @@
-rm -rf node_modules // ama den paizei apla sbhse ton fakelo kai to package.lock
+rmdir /s /q node_modules // ama den paizei apla sbhse ton fakelo kai to package.lock
 npm install
 expo login
 username:synthemesc
 password:@m2%9WFy
 $env:EAS_SKIP_AUTO_FINGERPRINT=1 // ayto to ebala giati mou eskage sto fingerprint
 
+npm start  // Gia na ksekinhsei
+eas build // Gia na ginei to build
 
 rmdir /s /q node_modules
 yarn
 npm install -g yarn
 
 
-ΒΕΒΑΙΩΣΗ ΠΕΡΑΙΩΣΗΣ ΤΗΣ ΔΙΑΔΙΚΑΣΙΑΣ ΥΠΑΓΩΓΗΣ ΣΤΟ Ν.4495/2017
-ΤΗΝ ΥΠ ΑΡΙΘΜ 13574063 22/12/2025 ΒΕΒΑΙΩΣΗ ΜΕ ΚΩΔ 9EC77394E2DD8BFF 
-ΚΑΙ ΑΦΟΡΑ ΥΠΟΓΕΙΟ ΜΕ ΧΡΗΣΗ ΑΠΟΘΗΚΗΣ

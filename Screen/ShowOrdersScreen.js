@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState,useRef } from "react";
 import {
   View,
   Text,
@@ -9,76 +9,163 @@ import {
   Pressable,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Swipeable } from "react-native-gesture-handler"; // για swipe
+import { Swipeable } from "react-native-gesture-handler";
 import { ImageBackground } from "react-native";
 import {
   BASE_URL,
   globalCompanyID,
 } from "../Staff/globalState";
+import { Audio } from 'expo-av';
+import * as signalR from "@microsoft/signalr";
 
 const ShowOrdersScreen = () => {
   const navigation = useNavigation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [rows ,setRows] = useState([]);
+  const ordersCountRef = useRef(0);
+
+const soundRef = useRef(null);
+
 const tableImage = require('../assets/table.png');
+
 useEffect(() => {
-  let isMounted = true;
-fetchOrderData();
-  const interval = setInterval(async () => {
-    if (!isMounted) return;
+  let connection;
 
-    const hasChanges = await checkchangesfn();
+  const setup = async () => {
+    try {
+      
+      const { sound: soundInsert } = await Audio.Sound.createAsync(
+        require('../assets/ding.mp3')
+      );
+      const { sound: soundUpdate } = await Audio.Sound.createAsync(
+        require('../assets/dingUpdate.mp3')
+      );
+      const { sound: soundDelete } = await Audio.Sound.createAsync(
+        require('../assets/dingDelete.mp3')
+      );
 
-    if (hasChanges === 1) {
-      fetchOrderData();
+      console.log("Sounds loaded successfully");
+
+      // SignalR connection
+      connection = new signalR.HubConnectionBuilder()
+        .withUrl(`${BASE_URL}/orderservice/ordersHub`)
+        .withAutomaticReconnect()
+        .build();
+
+      //  Register listeners
+      const handleSoundAndFetch = async (data, logText, type) => {
+        console.log(data);
+        console.log(logText);
+
+        let currentSound;
+        if (type === 1) currentSound = soundInsert;
+        else if (type === 2) currentSound = soundUpdate;
+        else currentSound = soundDelete;
+
+        if (currentSound) {
+          try {
+            await currentSound.setPositionAsync(0);
+            await currentSound.playAsync();
+          } catch (err) {
+            console.log("Sound play error:", err);
+          }
+        }
+
+        await fetchOrderData();
+      };
+
+      connection.on("ReceiveOrdersInsert", (data) =>
+        handleSoundAndFetch(data, "Order inserted", 1)
+      );
+
+      connection.on("ReceiveOrdersUpdate", (data) =>
+        handleSoundAndFetch(data, "Orders updated", 2)
+      );
+
+      connection.on("ReceiveOrdersDeleteItem", (data) =>
+        handleSoundAndFetch(data, "Order item deleted", 3)
+      );
+
+      connection.on("ReceiveOrdersDeleteOrder", (data) =>
+        handleSoundAndFetch(data, "Order deleted", 3)
+      );
+
+      // 🔹 4. Start connection
+      await connection.start();
+      await connection.invoke("JoinCompanyGroup", String(globalCompanyID));
+      console.log("SignalR connected and joined group");
+
+    } catch (err) {
+      console.log("Setup error:", err);
     }
-  }, 10000);
+  };
+
+  fetchOrderData();
+
+  setup();
 
   return () => {
-    isMounted = false;
-    clearInterval(interval);
+    if (connection) connection.stop();
   };
 }, []);
 
-  const fetchOrderData = async () => {
-    try {
-      setLoading(true);
-      const url = `${BASE_URL}/orderservice/GetShowOrders?companyID=${globalCompanyID}&rows=0`
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Σφάλμα κατά την ανάκτηση παραγγελιών");
-      const data = await response.json();
-      setOrders(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+
+const fetchOrderData = async () => {
+  try {
+    setLoading(true);
+
+    const url = `${BASE_URL}/orderservice/GetShowOrders?companyID=${globalCompanyID}&rows=-1`;
+    const response = await fetch(url);
+
+    if (!response.ok)
+      throw new Error("Σφάλμα κατά την ανάκτηση παραγγελιών");
+
+    const data = await response.json();
+
+    setOrders(data);
+    ordersCountRef.current = data.length; 
+
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 
 const checkchangesfn = async () => {
   try {
-    const cR = countRows();
+    const currentCount = ordersCountRef.current;
 
-    const url = `${BASE_URL}/orderservice/GetShowOrders?companyID=${globalCompanyID}&rows=${cR}`;
+    const url = `${BASE_URL}/orderservice/GetShowOrders?companyID=${globalCompanyID}&rows=${currentCount}`;
     const res = await fetch(url);
 
-    if (!res.ok) return 0;
+    if (!res.ok) return false;
 
     const text = await res.text();
-console.log(cR);
-    if (!text) return 0; // αν είναι κενό
 
-    const data = JSON.parse(text);
+    if (text === '"-1"' || text === "-1") {
+      return false; // δεν άλλαξε
+    }
+       try {
+        await soundRef.current?.replayAsync();
+      } catch (err) {
+        console.log("Sound play error:", err);
+      }
+      await fetchOrderData();
+    
+    return true; // άλλαξε
 
-    return data === "1" ? 1 : 0;
-
-  } catch (e) {
-    console.log("checkchanges error", e);
-    return 0;
+  } catch (err) {
+    console.log("checkchanges error", err);
+    return false;
   }
 };
+
+
 
 
   // function για αλλαγή status
@@ -90,33 +177,45 @@ const changestatusflg = async (orderDtlItemIsSeq, newStatus) => {
       const currentStatus = o.STATUS;
       const nextStatus =
         currentStatus === String(newStatus) ? "1" : String(newStatus);
-
+updateStatus(orderDtlItemIsSeq,newStatus);
       return { ...o, STATUS: nextStatus };
     })
   );
 
   console.log("Change status:", orderDtlItemIsSeq, newStatus);
 
-  // εδώ μπορείς να στείλεις nextStatus στο backend
 };
 
-const countRows = (groupedData) => {
-  if (!orders || orders.length === 0) return 0;
+const updateStatus = async (orderDtlItemIsSeq,newStatus) => {
+  try {
+    const url = `${BASE_URL}/orderservice/OrderItems/UpdateStatusItem?companyID=${globalCompanyID}&orderItemId=${orderDtlItemIsSeq}&status=${newStatus}`;
+console.log(url);
+    const res = await fetch(url, {
+      method: "POST"
+    });
 
-  let rowCount = 0;
+    console.log("status:", res.status);
 
-  orders.forEach(order => {
-    // εδώ μετράμε κάθε διαφορετικό (τραπέζι + item + description) ως μία γραμμή
-    rowCount += 1;
-  });
+    const text = await res.text();
+    console.log("raw response:", text);
 
-  return rowCount;
+    if (!text) return res.ok;
+
+    const data = JSON.parse(text);
+    console.log("json response:", data);
+
+    return res.ok;
+
+  } catch (err) {
+    console.log("updateStatus error", err);
+    return false;
+  }
 };
 
 
 
 
-  // GROUP BY: TYPE → CATEGORY → ITEM → DESCRIPTION → TABLE
+  // GROUP BY: TYPE -> CATEGORY -> ITEM -> DESCRIPTION -> TABLE
   const groupedData = orders.reduce((acc, curr) => {
     const {
       TYPEID,
@@ -138,7 +237,6 @@ const countRows = (groupedData) => {
       acc[TYPEID].categories[CATEGORYID] = { categoryName: CATEGORY_NAME, items: {} };
     }
 
-    // μοναδικό key ανά ITEM + DESCRIPTION
     const itemKey = `${ITEMID}_${ORDERITEMDESCRIPTION || ""}_${ORDERTABLE}`;
 
     if (!acc[TYPEID].categories[CATEGORYID].items[itemKey]) {
@@ -200,7 +298,7 @@ const countRows = (groupedData) => {
                             style={styles.swipeAction}
                             onPress={() => changestatusflg(item.itemseqid, 3)}
                           >
-                            <Text style={{ color: "#fff" }}>Ready</Text>
+                            <Text style={{ color: "#fff" }}>Παράδοση</Text>
                           </TouchableOpacity>
                         )}
                       >
