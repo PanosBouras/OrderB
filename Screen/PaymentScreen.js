@@ -152,7 +152,7 @@ const handlePayment = async () => {
     } else {
       navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });
     }
-
+console.log( JSON.stringify(requestData));
   } catch (error) {
     console.error('Payment failed:', error);
     navigation.navigate('OrderInfo', { tableNumber: gloabalTableid });

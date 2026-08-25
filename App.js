@@ -19,6 +19,7 @@ import CompanySettingsScreen from "./Screen/CompanySettingsScreen";
 import UsersListScreen from "./Screen/UsersListScreen";
 import ProductFormScreen from "./Screen/ProductFormScreen";
 import ProductListScreen from "./Screen/ProductListScreen";
+import AnalyticsScreen from "./Screen/AnalyticsScreen";
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const Stack = createNativeStackNavigator();
@@ -43,6 +44,7 @@ function App() {
         <Stack.Screen name="UsersListScreen" component={UsersListScreen} />
         <Stack.Screen name="ProductFormScreen" component={ProductFormScreen} />
         <Stack.Screen name="ProductListScreen" component={ProductListScreen} />
+        <Stack.Screen name="AnalyticsScreen" component={AnalyticsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </GestureHandlerRootView>

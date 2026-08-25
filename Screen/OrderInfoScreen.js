@@ -8,7 +8,7 @@ import InputSpinner from "react-native-input-spinner";
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { Swipeable } from 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
+import { Ionicons } from '@expo/vector-icons';
 
 const OrderInfoScreen = ({ route }) => {
 
@@ -32,13 +32,11 @@ const handleDeleteOrder = async (gloabalTableid) => {
   setOrderVisible(true);  // Εμφανίζουμε το διάλογο επιβεβαίωσης
 };
 
-const handleDelete  =  async (OrderDTLSeq) => {
-  //setOrderData(orderData.filter(order => order.OrderDTLSeq !== OrderDTLSeq));
-
+const handleDelete = async (OrderDTLSeq) => {
+  console.log('🔍 Deleting item, OrderDTLSeq =', JSON.stringify(OrderDTLSeq));
   setOrderDTLSeqToDelete(OrderDTLSeq);
- setVisible(true);  // Εμφανίζουμε το διάλογο επιβεβαίωσης
+  setVisible(true);
 };
-
 const handleDuplicateOrderItem = async (data) => {
   try {
     const newOrderData = [{
@@ -77,6 +75,7 @@ const fetchOrderData = async () => {
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
     const data = await response.json();
+    console.log(globalCompanyID);
     setOrderData(data); // Ενημερώνουμε την κατάσταση της παραγγελίας με τα νέα δεδομένα
   } catch (error) {
     console.error('Error fetching order data:', error);
@@ -303,16 +302,14 @@ const handleEditComment = async () => {
 const confirmDelete  =  async () => {
   // Διαγραφή του στοιχείου από τον πίνακα δεδομένων
   setOrderData(orderData.filter(order => order.OrderDTLSeq !== orderDTLSeqToDelete));
-  console.log(`${BASE_URL}/orderservice/PostDeleteItemOrder?companyID=${globalCompanyID}?orderItemSeq=${encodeURIComponent(orderDTLSeqToDelete)}&username=${encodeURIComponent(globalUsername)}`);
+  console.log(`${BASE_URL}/orderservice/PostDeleteItemOrder?companyID=${globalCompanyID}&orderItemSeq=${encodeURIComponent(orderDTLSeqToDelete)}&username=${encodeURIComponent(globalUsername)}`);
   try {
 
-            const response = await fetch(`${BASE_URL}/orderservice/PostDeleteItemOrder?companyID=${globalCompanyID}&orderItemSeq=${encodeURIComponent(orderDTLSeqToDelete)}&username=${encodeURIComponent(globalUsername)}`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              }
-            });
-
+            const response = await fetch(`${BASE_URL}/orderservice/PostDeleteItemOrder?companyID=${globalCompanyID}&tableid=${encodeURIComponent(gloabalTableid)}&orderItemSeq=${encodeURIComponent(orderDTLSeqToDelete)}&username=${encodeURIComponent(globalUsername)}`,
+  {
+    method: 'POST'
+  }
+);
    // const response = await fetch(url); // Replace with your API endpoint
     
     if (!response.ok) {
@@ -570,6 +567,8 @@ const renderOrderItem = ({ item, index }) => {
         <TouchableOpacity style={styles.backIcon} onPress={() => {setGlobalPersons(1); navigation.navigate('Tables')}}>
             <Text style={styles.backIcon}>{'↩'}</Text>
           </TouchableOpacity>
+
+              
       </View>
 
       {/* Right Content */}
@@ -599,7 +598,7 @@ const renderOrderItem = ({ item, index }) => {
           </View> 
             </View>
 
-          <Text style={styles.headerText}>Παραγγελία</Text>
+          <Text style={styles.headerText}>ΠΑΡΑΓΓΕΛΙΑ</Text>
            
 
         </View>
@@ -710,7 +709,11 @@ const renderOrderItem = ({ item, index }) => {
            </View>
          </View>
        </Modal>
-
+  <View style={styles.footerButtons}>
+                  <TouchableOpacity style={styles.footerButton}  onPress={() => {setGlobalPersons(1); navigation.navigate('Tables')}}>
+                    <Ionicons name="arrow-back" size={20} color="#fff" />
+                  </TouchableOpacity>
+                </View>
     </View>
 
 
@@ -782,7 +785,7 @@ hdre: {
   flex: 1,        // ← παίρνει ίσο χώρο
 },
 headerText: {
-  fontSize: 35,
+  fontSize: 30,
   fontWeight: 'bold',
   color: '#3D3A2D',
   textAlign: 'center',

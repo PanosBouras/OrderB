@@ -20,8 +20,8 @@ const HomeScreen = () => {
   };
 
 const handleShowReportsPress = () =>{
-  Alert.alert("Under construction");
-  //navigation.navigate('ShowReports');
+ // Alert.alert("Under construction");
+  navigation.navigate('AnalyticsScreen');
 }
 
 

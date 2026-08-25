@@ -8,6 +8,16 @@ $env:EAS_SKIP_AUTO_FINGERPRINT=1 // ayto to ebala giati mou eskage sto fingerpri
 npm start  // Gia na ksekinhsei
 eas build // Gia na ginei to build
 
+//Gia build xoris Expo
+
+cd android
+.\gradlew clean
+.\gradlew assembleRelease
+
+D:\Users\tzitz\Documents\PROJECTS\orderB\android\app\build\outputs\apk\release
+//
+
+
 rmdir /s /q node_modules
 yarn
 npm install -g yarn

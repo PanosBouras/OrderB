@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { BASE_URL, gloabalTableid,globalUsername,globalUserID,globalCompanyID, globalPersons } from '../Staff/globalState'; // Εισαγωγή του BASE_URL
 import { useNavigation } from '@react-navigation/native';
-
+import { Ionicons } from '@expo/vector-icons';
 const ChoosePlates = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -268,12 +268,14 @@ const extraPrice = selectedRecs.reduce((sum, rec) => {
     <View style={styles.container}>
       <Image source={require('../assets/5134814.png')} style={styles.imgIcon} />
       <FlatList data={data} renderItem={renderCategory} keyExtractor={(item, index) => index.toString()} />
-      <TouchableOpacity style={styles.submitButton} onPress={handleConfirmOrder}>
-        <Image source={require('../IMAGE/checkmark_8625365.png')} style={styles.submitIcon} />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.navButton} onPress={handleReturnToOrder}>
-        <Text style={styles.backIcon}>{'↩'}</Text>
-      </TouchableOpacity>
+      <View style={styles.footerButtons}>
+        <TouchableOpacity style={styles.footerButton}  onPress={handleReturnToOrder}>
+          <Ionicons name="arrow-back" size={20} color="#fff" />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.footerButton, styles.confirmButton]}  onPress={handleConfirmOrder}>
+          <Ionicons name="checkmark" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
 
        <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={handleCancelComment}>
          <View style={styles.modalContainer}>
@@ -495,6 +497,24 @@ const styles = StyleSheet.create({
   navButton: {
     
     marginVertical: 0,
+  },
+  footerButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 15,
+  },
+  footerButton: {
+    flex: 1,
+    height: 50,
+    backgroundColor: 'rgb(151, 36, 51)',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmButton: {
+    backgroundColor: '#2e6b26',
   },
 });
 
